@@ -25,7 +25,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    
+    // Prevent interceptor loop on auth endpoints
+    const isAuthEndpoint =
+      originalRequest?.url?.includes('/auth/verify-otp') ||
+      originalRequest?.url?.includes('/auth/send-otp') ||
+      originalRequest?.url?.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('kabadidealer_refresh_token');
 
@@ -44,6 +51,16 @@ api.interceptors.response.use(
         }
       }
     }
+
+    // User-friendly network/timeout message when backend is unreachable
+    if (!error.response) {
+      if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+        error.message = 'Request timed out. Please check your network and try again.';
+      } else {
+        error.message = 'Unable to reach backend server. Please verify your connection or backend URL.';
+      }
+    }
+
     return Promise.reject(error);
   }
 );

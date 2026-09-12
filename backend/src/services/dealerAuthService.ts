@@ -15,7 +15,7 @@ export class DealerAuthService {
     return {
       message: 'OTP sent successfully to your dealer mobile number',
       expiresAt,
-      demoOtp: otp,
+      ...(process.env.NODE_ENV === 'development' ? { demoOtp: otp } : {}),
     };
   }
 
@@ -34,14 +34,26 @@ export class DealerAuthService {
     isNewDealer: boolean;
   }> {
     const cleanPhone = phone.replace(/\s+/g, '').trim();
+    const raw10Digits = cleanPhone.replace(/\D/g, '').slice(-10);
+    const standardPhone = `+91${raw10Digits}`;
 
-    const isValid = verifyOtpCode(cleanPhone, otp);
+    const isValid =
+      verifyOtpCode(cleanPhone, otp) ||
+      verifyOtpCode(standardPhone, otp) ||
+      verifyOtpCode(raw10Digits, otp);
+
     if (!isValid) {
       throw new Error('Invalid or expired OTP. Please try again.');
     }
 
     let isNewDealer = false;
-    let dealer = await Dealer.findOne({ phone: cleanPhone });
+    let dealer = await Dealer.findOne({
+      $or: [{ phone: standardPhone }, { phone: raw10Digits }, { phone: cleanPhone }],
+    });
+
+    if (dealer && dealer.phone !== standardPhone) {
+      dealer.phone = standardPhone;
+    }
 
     if (!dealer) {
       isNewDealer = true;
@@ -49,10 +61,9 @@ export class DealerAuthService {
 
       dealer = await Dealer.create({
         dealerId,
-        phone: cleanPhone,
+        phone: standardPhone,
         businessName: businessName?.trim() || 'Scrap Collection Center',
         contactPerson: contactPerson?.trim() || businessName?.trim() || '',
-        isProfileCompleted: true,
         isOnline: true,
         isBusy: false,
         rating: 5.0,

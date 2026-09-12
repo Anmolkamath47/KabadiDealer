@@ -1,24 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDealerAuth } from '../context/DealerAuthContext';
-import { ArrowLeft, CheckCircle, RotateCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle, RotateCw } from 'lucide-react';
 
 export const OtpVerifyScreen: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { verifyOtpAndLogin, requestOtp } = useDealerAuth();
 
-  const statePhone = (location.state as any)?.phone || '';
-  const [phone] = useState<string>(() => {
-    if (statePhone) {
-      sessionStorage.setItem('kabadidealer_pending_phone', statePhone);
-      return statePhone;
-    }
-    return sessionStorage.getItem('kabadidealer_pending_phone') || '+917406903710';
-  });
+  const phone = (location.state as any)?.phone || '';
+  const demoOtp = (location.state as any)?.demoOtp || '1234';
 
-  // Pre-fill with master demo OTP 1234 for instant zero-friction verification
-  const [otp, setOtp] = useState(['1', '2', '3', '4']);
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
@@ -60,16 +53,10 @@ export const OtpVerifyScreen: React.FC = () => {
     }
   };
 
-  const handleFillDemo = () => {
-    setOtp(['1', '2', '3', '4']);
-    setError(null);
-  };
-
   const handleVerify = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    if (e) e.preventDefault();
+    if (isSubmitting) return; // Prevent duplicate submissions
+
     const fullOtp = otp.join('');
 
     if (fullOtp.length !== 4) {
@@ -81,11 +68,19 @@ export const OtpVerifyScreen: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await verifyOtpAndLogin(phone, fullOtp);
-      // Seamlessly navigate to partner home dashboard
-      navigate('/', { replace: true });
+      const res = await verifyOtpAndLogin(phone, fullOtp);
+      if (!res.dealer?.isProfileCompleted || res.isNewDealer) {
+        navigate('/onboarding', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Invalid OTP. Please check and try again.');
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.errors?.[0]?.message ||
+        err.message ||
+        'Invalid OTP. Please check and try again.';
+      setError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -117,24 +112,29 @@ export const OtpVerifyScreen: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1">
             Enter the 4-digit code sent to <span className="font-bold text-slate-800">{phone}</span>
           </p>
+        </div>
 
-          {/* Quick Demo Fill Helper Banner */}
-          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center justify-between shadow-xs">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <div>
-                <p className="text-[11px] font-bold text-emerald-900">Demo Mode Active</p>
-                <p className="text-[11px] text-emerald-700">Code is: <span className="font-black font-mono">1234</span></p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl shadow-xs transition"
-            >
-              Fill 1234
-            </button>
+        {/* Demo Mode Badge */}
+        <div className="mt-4 bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800 shadow-2xs">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>
+              <strong>Demo Mode Active:</strong> Use OTP{' '}
+              <span className="font-mono font-black bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-900">
+                {demoOtp}
+              </span>
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOtp(demoOtp.split(''));
+              setError(null);
+            }}
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline ml-2 cursor-pointer"
+          >
+            Auto-fill
+          </button>
         </div>
 
         <form onSubmit={handleVerify} className="mt-6 space-y-5">
@@ -154,12 +154,16 @@ export const OtpVerifyScreen: React.FC = () => {
             ))}
           </div>
 
-          {error && <p className="text-xs text-rose-600 font-semibold text-center">{error}</p>}
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+              <p className="text-xs text-rose-700 font-semibold text-center">{error}</p>
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={isSubmitting || otp.some((d) => !d)}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold py-3.5 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-md cursor-pointer"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold py-3.5 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-md"
           >
             <CheckCircle className="w-4 h-4" />
             <span>{isSubmitting ? 'Verifying...' : 'Verify & Continue'}</span>

@@ -48,7 +48,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowIncompleteProfi
 
 // Public Route Wrapper (redirect if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useDealerAuth();
+  const { isAuthenticated, isLoading, dealer } = useDealerAuth();
 
   if (isLoading) {
     return (
@@ -59,6 +59,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated) {
+    if (dealer && dealer.isProfileCompleted === false) {
+      return <Navigate to="/onboarding" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 

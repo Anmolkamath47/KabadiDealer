@@ -20,17 +20,22 @@ export const connectDB = async (): Promise<void> => {
         console.log('⚡ Initializing isolated in-memory test MongoDB instance for Kabadidealer...');
         mongod = await MongoMemoryServer.create();
       } else {
-        console.log(`⚡ Initializing persistent database engine for Kabadidealer at ${dbDir}...`);
-        mongod = await MongoMemoryServer.create({
-          instance: {
-            dbPath: dbDir,
-            storageEngine: 'wiredTiger',
-          },
-        });
+        console.log(`⚡ Initializing database engine for Kabadidealer at ${dbDir}...`);
+        try {
+          mongod = await MongoMemoryServer.create({
+            instance: {
+              dbPath: dbDir,
+              storageEngine: 'wiredTiger',
+            },
+          });
+        } catch (memErr) {
+          console.warn('⚠️ Could not acquire persistent lock on .db_data, falling back to clean in-memory instance:', memErr);
+          mongod = await MongoMemoryServer.create();
+        }
       }
       const uri = mongod.getUri();
       await mongoose.connect(uri);
-      console.log(`✅ Kabadidealer MongoDB Connected (${isTest ? 'Test Memory Server' : 'Persistent Storage Engine'}): ${uri}`);
+      console.log(`✅ Kabadidealer MongoDB Connected: ${uri}`);
       return;
     }
 
@@ -41,16 +46,20 @@ export const connectDB = async (): Promise<void> => {
       });
       console.log('✅ Connected to Kabadidealer MongoDB server');
     } catch (err) {
-      console.warn('⚠️ Local MongoDB connection failed. Falling back to persistent database engine...');
-      mongod = await MongoMemoryServer.create({
-        instance: {
-          dbPath: dbDir,
-          storageEngine: 'wiredTiger',
-        },
-      });
+      console.warn('⚠️ Local MongoDB connection failed. Falling back to database engine...');
+      try {
+        mongod = await MongoMemoryServer.create({
+          instance: {
+            dbPath: dbDir,
+            storageEngine: 'wiredTiger',
+          },
+        });
+      } catch {
+        mongod = await MongoMemoryServer.create();
+      }
       const uri = mongod.getUri();
       await mongoose.connect(uri);
-      console.log(`✅ Kabadidealer MongoDB Connected (Persistent Storage Fallback): ${uri}`);
+      console.log(`✅ Kabadidealer MongoDB Connected (Fallback Engine): ${uri}`);
     }
   } catch (error) {
     console.error('❌ Kabadidealer MongoDB connection error:', error);

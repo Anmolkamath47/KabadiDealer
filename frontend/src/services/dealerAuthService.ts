@@ -18,13 +18,29 @@ export const dealerAuthService = {
     refreshToken: string;
     isNewDealer: boolean;
   }> {
-    const res = await api.post('/auth/verify-otp', {
-      phone,
-      otp,
-      businessName,
-      contactPerson,
-    });
-    return res.data.data;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const res = await api.post(
+        '/auth/verify-otp',
+        {
+          phone,
+          otp,
+          businessName,
+          contactPerson,
+        },
+        { signal: controller.signal }
+      );
+      clearTimeout(timer);
+      return res.data.data;
+    } catch (err: any) {
+      clearTimeout(timer);
+      if (err.name === 'CanceledError' || controller.signal.aborted) {
+        throw new Error('Verification request timed out. Please check your connection and try again.');
+      }
+      throw err;
+    }
   },
 
   async getMe(): Promise<DealerProfile> {

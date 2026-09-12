@@ -74,26 +74,24 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     businessName?: string,
     contactPerson?: string
   ): Promise<{ isNewDealer: boolean; isProfileCompleted: boolean; dealer: DealerProfile }> => {
-    setIsLoading(true);
-    try {
-      const data = await dealerAuthService.verifyOtp(phone, otp, businessName, contactPerson);
-      setToken(data.accessToken);
-      setDealer(data.dealer);
-      localStorage.setItem('kabadidealer_token', data.accessToken);
-      localStorage.setItem('kabadidealer_refresh_token', data.refreshToken);
-      localStorage.setItem('kabadidealer_dealer', JSON.stringify(data.dealer));
+    const data = await dealerAuthService.verifyOtp(phone, otp, businessName, contactPerson);
+    setToken(data.accessToken);
+    setDealer(data.dealer);
+    localStorage.setItem('kabadidealer_token', data.accessToken);
+    localStorage.setItem('kabadidealer_refresh_token', data.refreshToken);
+    localStorage.setItem('kabadidealer_dealer', JSON.stringify(data.dealer));
 
+    try {
       dealerSocketService.connect(data.dealer.dealerId, data.accessToken);
-      setIsLoading(false);
-      return {
-        isNewDealer: data.isNewDealer,
-        isProfileCompleted: !!data.dealer.isProfileCompleted,
-        dealer: data.dealer,
-      };
-    } catch (error) {
-      setIsLoading(false);
-      throw error;
+    } catch (socketErr) {
+      console.warn('Socket connection deferred:', socketErr);
     }
+
+    return {
+      isNewDealer: data.isNewDealer,
+      isProfileCompleted: !!data.dealer.isProfileCompleted,
+      dealer: data.dealer,
+    };
   };
 
   const toggleOnlineStatus = async (status: boolean) => {
