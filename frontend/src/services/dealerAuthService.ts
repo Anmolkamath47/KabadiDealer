@@ -70,12 +70,12 @@ export const dealerAuthService = {
             activeRadiusKm: 15,
             location: {
               type: 'Point',
-              coordinates: [77.2150, 28.6250],
-              address: 'Plot 44, Recycling Estate, Connaught Place, New Delhi - 110001',
-              landmark: 'Near Metro Pillar 12',
+              coordinates: [77.5058, 13.04314],
+              address: 'Chokkasandra, Bengaluru, 560057',
+              landmark: 'Near Peenya Industrial Area',
             },
-            vehicleType: 'Electric Mini Loader 800kg',
-            vehicleNumber: 'DL-01-EV-9821',
+            vehicleType: 'Tata Ace Mini Truck',
+            vehicleNumber: 'KA-04-TR-5600',
             scrapRates: [
               { category: 'Paper', name: 'Newspaper (Raddi)', unit: 'kg', pricePerKg: 14, minQuantityKg: 5, icon: 'newspaper' },
               { category: 'Paper', name: 'Books & Notebooks', unit: 'kg', pricePerKg: 12, minQuantityKg: 5, icon: 'book' },

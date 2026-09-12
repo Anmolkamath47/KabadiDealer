@@ -4,6 +4,7 @@ import { useDealerAuth } from '../context/DealerAuthContext';
 import { DealerLocationPickerMap } from '../components/map/DealerLocationPickerMap';
 import { mapService } from '../services/mapService';
 import { getDealerInitial } from '../utils/avatarUtils';
+import { reconcileCityCoordinates } from '../utils/geoUtils';
 import {
   MapPin,
   Locate,
@@ -169,7 +170,8 @@ export const DealerOnboardingScreen: React.FC = () => {
 
     try {
       // 1. Update location coordinates & address
-      await updateLocation(coords, addressText.trim(), landmark.trim() || undefined);
+      const healedCoords = reconcileCityCoordinates(addressText.trim(), coords);
+      await updateLocation(healedCoords, addressText.trim(), landmark.trim() || undefined);
 
       // 2. Update dealer profile with vehicle, hub name, photo, and completion flag
       await updateProfile({

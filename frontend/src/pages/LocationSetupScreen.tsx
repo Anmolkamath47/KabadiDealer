@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDealerAuth } from '../context/DealerAuthContext';
+import { reconcileCityCoordinates } from '../utils/geoUtils';
 import L from 'leaflet';
 import {
   ArrowLeft,
@@ -265,7 +266,8 @@ export const LocationSetupScreen: React.FC = () => {
     }
     setIsSaving(true);
     try {
-      await updateLocation(coords, address.trim(), landmark.trim());
+      const healedCoords = reconcileCityCoordinates(address.trim(), coords);
+      await updateLocation(healedCoords, address.trim(), landmark.trim());
       navigate('/');
     } catch {
       alert('Failed to update location');

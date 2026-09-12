@@ -3,6 +3,8 @@ import { DealerProfile } from '../types';
 import { dealerAuthService } from '../services/dealerAuthService';
 import { dealerOrderService } from '../services/dealerOrderService';
 import { dealerSocketService } from '../services/dealerSocketService';
+import { crossOriginSync } from '../services/crossOriginSyncService';
+import { reconcileCityCoordinates } from '../utils/geoUtils';
 
 interface DealerAuthContextType {
   dealer: DealerProfile | null;
@@ -27,7 +29,20 @@ const DealerAuthContext = createContext<DealerAuthContextType | undefined>(undef
 export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dealer, setDealer] = useState<DealerProfile | null>(() => {
     const saved = localStorage.getItem('kabadidealer_dealer');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed?.location?.address) {
+        const healed = reconcileCityCoordinates(parsed.location.address, parsed.location.coordinates);
+        if (parsed.location.coordinates && (parsed.location.coordinates[0] !== healed[0] || parsed.location.coordinates[1] !== healed[1])) {
+          parsed.location.coordinates = healed;
+          localStorage.setItem('kabadidealer_dealer', JSON.stringify(parsed));
+        }
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
   });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('kabadidealer_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -64,6 +79,13 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     initAuth();
   }, []);
 
+  // Continuously sync dealer presence with cross-origin consumer app
+  useEffect(() => {
+    if (dealer) {
+      crossOriginSync.syncDealer(dealer);
+    }
+  }, [dealer]);
+
   const requestOtp = async (phone: string) => {
     return dealerAuthService.requestOtp(phone);
   };
@@ -90,7 +112,7 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     broadcastDealerEvent({
       type: 'DEALER_ONLINE',
       dealer: data.dealer,
-    });
+    }, data.dealer);
 
     return {
       isNewDealer: data.isNewDealer,
@@ -99,16 +121,21 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   };
 
-const broadcastDealerEvent = (event: any) => {
-  if (typeof window === 'undefined') return;
-  try {
-    const channel = new BroadcastChannel('kabadiwala_cross_app_sync');
-    channel.postMessage({ ...event, timestamp: Date.now() });
-    channel.close();
-  } catch {
-    // BroadcastChannel unsupported or restricted
-  }
-};
+  const broadcastDealerEvent = (event: any, currentDealer?: DealerProfile | null) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const channel = new BroadcastChannel('kabadiwala_cross_app_sync');
+      channel.postMessage({ ...event, timestamp: Date.now() });
+      channel.close();
+    } catch {
+      // BroadcastChannel unsupported or restricted
+    }
+
+    const target = event.dealer || currentDealer;
+    if (target) {
+      crossOriginSync.syncDealer(target);
+    }
+  };
 
   const toggleOnlineStatus = async (status: boolean) => {
     await dealerOrderService.setOnlineStatus(status);
@@ -121,7 +148,7 @@ const broadcastDealerEvent = (event: any) => {
         dealerId: dealer.dealerId,
         isOnline: status,
         location: dealer.location,
-      });
+      }, updated);
     }
   };
 
@@ -132,20 +159,23 @@ const broadcastDealerEvent = (event: any) => {
     broadcastDealerEvent({
       type: 'DEALER_PROFILE_UPDATED',
       dealer: updated,
-    });
+    }, updated);
     return updated;
   };
 
   const updateLocation = async (coords: [number, number], address?: string, landmark?: string) => {
-    await dealerOrderService.updateLocation(coords, address, landmark);
+    const targetAddress = address || dealer?.location?.address || '';
+    const healedCoords = reconcileCityCoordinates(targetAddress, coords);
+
+    await dealerOrderService.updateLocation(healedCoords, targetAddress, landmark);
     if (dealer) {
       const updated = {
         ...dealer,
         location: {
           ...dealer.location,
-          coordinates: coords,
-          address: address || dealer.location.address,
-          landmark: landmark || dealer.location.landmark,
+          coordinates: healedCoords,
+          address: targetAddress || dealer.location?.address,
+          landmark: landmark || dealer.location?.landmark,
         },
       };
       setDealer(updated);
@@ -155,7 +185,7 @@ const broadcastDealerEvent = (event: any) => {
         dealerId: dealer.dealerId,
         isOnline: dealer.isOnline,
         location: updated.location,
-      });
+      }, updated);
     }
   };
 
