@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDealerAuth } from '../context/DealerAuthContext';
-import { ArrowLeft, CheckCircle, RotateCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle, RotateCw, Sparkles } from 'lucide-react';
 
 export const OtpVerifyScreen: React.FC = () => {
   const location = useLocation();
@@ -9,18 +9,14 @@ export const OtpVerifyScreen: React.FC = () => {
   const { verifyOtpAndLogin, requestOtp } = useDealerAuth();
 
   const phone = (location.state as any)?.phone || '';
+  const demoOtp = (location.state as any)?.demoOtp || '1234';
 
   const [otp, setOtp] = useState(['', '', '', '']);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
 
-  const inputRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ];
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     if (!phone) {
@@ -28,7 +24,7 @@ export const OtpVerifyScreen: React.FC = () => {
       return;
     }
 
-    inputRefs[0].current?.focus();
+    inputRefs.current[0]?.focus();
     const interval = setInterval(() => {
       setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
@@ -36,20 +32,64 @@ export const OtpVerifyScreen: React.FC = () => {
   }, [phone, navigate]);
 
   const handleChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
+    const cleanDigits = value.replace(/\D/g, '');
+
+    if (!cleanDigits) {
+      const newOtp = [...otp];
+      newOtp[index] = '';
+      setOtp(newOtp);
+      return;
+    }
+
+    // Handle multiple digits (paste or browser autofill)
+    if (cleanDigits.length > 1) {
+      const newOtp = [...otp];
+      const chars = cleanDigits.slice(0, 4).split('');
+      chars.forEach((c, i) => {
+        if (index + i < 4) {
+          newOtp[index + i] = c;
+        }
+      });
+      setOtp(newOtp);
+      const nextFocus = Math.min(index + chars.length, 3);
+      inputRefs.current[nextFocus]?.focus();
+      return;
+    }
+
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
+    newOtp[index] = cleanDigits.slice(-1);
     setOtp(newOtp);
 
-    if (value && index < 3) {
-      inputRefs[index + 1].current?.focus();
+    if (index < 3) {
+      inputRefs.current[index + 1]?.focus();
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
+      inputRefs.current[index - 1]?.focus();
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (pasted) {
+      const newOtp = ['', '', '', ''];
+      pasted.split('').forEach((d, i) => {
+        newOtp[i] = d;
+      });
+      setOtp(newOtp);
+      const targetFocus = Math.min(pasted.length, 3);
+      inputRefs.current[targetFocus]?.focus();
+    }
+  };
+
+  const handleAutoFillDemo = () => {
+    const digits = (demoOtp || '1234').split('').slice(0, 4);
+    setOtp(digits);
+    setError(null);
+    inputRefs.current[3]?.focus();
   };
 
   const handleVerify = async (e?: React.FormEvent) => {
@@ -72,20 +112,10 @@ export const OtpVerifyScreen: React.FC = () => {
         navigate('/', { replace: true });
       }
     } catch (err: any) {
+      console.error('OTP verification error:', err);
       setError(err.response?.data?.message || err.message || 'Invalid OTP. Please check and try again.');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (resendTimer > 0) return;
-    try {
-      await requestOtp(phone);
-      setResendTimer(30);
-      setError(null);
-    } catch {
-      setError('Failed to resend OTP.');
     }
   };
 
@@ -111,19 +141,38 @@ export const OtpVerifyScreen: React.FC = () => {
             {otp.map((digit, idx) => (
               <input
                 key={idx}
-                ref={inputRefs[idx]}
+                ref={(el) => {
+                  inputRefs.current[idx] = el;
+                }}
                 type="text"
                 inputMode="numeric"
-                maxLength={1}
+                pattern="[0-9]*"
+                maxLength={idx === 0 ? 4 : 1}
                 value={digit}
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
+                onPaste={handlePaste}
                 className="w-14 h-16 text-center text-2xl font-black text-slate-900 bg-white border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl outline-none shadow-xs transition"
               />
             ))}
           </div>
 
-          {error && <p className="text-xs text-rose-600 font-semibold text-center">{error}</p>}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={handleAutoFillDemo}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Auto-fill Demo Code: {demoOtp || '1234'}</span>
+            </button>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+              <p className="text-xs text-rose-600 font-semibold text-center">{error}</p>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -142,7 +191,15 @@ export const OtpVerifyScreen: React.FC = () => {
             </p>
           ) : (
             <button
-              onClick={handleResend}
+              onClick={async () => {
+                try {
+                  await requestOtp(phone);
+                  setResendTimer(30);
+                  setError(null);
+                } catch {
+                  setError('Failed to resend OTP.');
+                }
+              }}
               className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center justify-center space-x-1 mx-auto"
             >
               <RotateCw className="w-3.5 h-3.5" />
