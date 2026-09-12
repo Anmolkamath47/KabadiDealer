@@ -41,6 +41,13 @@ async function runTestSuite() {
     assert(!!authRes.accessToken, 'Verify OTP returns JWT Access Token');
     assert(!!authRes.dealer.dealerId, `Dealer registered with ID: ${authRes.dealer.dealerId}`);
 
+    // Test new registration without contactPerson/businessName (the real UI OTP verification flow)
+    const newDealerPhone = '+919036862856';
+    const newAuthRes = await DealerAuthService.verifyOtpAndLogin(newDealerPhone, '1234');
+    assert(!!newAuthRes.accessToken, 'New dealer created with only phone and demo OTP 1234');
+    assert(newAuthRes.dealer.contactPerson === 'Partner Dealer', 'Sensible default contactPerson applied without validation error');
+    assert(newAuthRes.isNewDealer === true, 'Flagged correctly as new dealer');
+
     const dealerId = authRes.dealer.dealerId;
 
     // 3. Location & Availability

@@ -30,7 +30,6 @@ export const LoginScreen: React.FC = () => {
       navigate('/otp-verify', {
         state: {
           phone: fullPhone,
-          demoOtp: res.demoOtp,
         },
       });
     } catch (err: any) {

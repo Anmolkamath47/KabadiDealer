@@ -1,7 +1,29 @@
 import { io, Socket } from 'socket.io-client';
 import { OrderStatus, DealerLiveLocation, DealerOrder } from '../types';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
+const resolveSocketUrl = (): string => {
+  const envUrl = import.meta.env.VITE_SOCKET_URL;
+  if (typeof window !== 'undefined' && window.location) {
+    const currentHost = window.location.hostname;
+    if (currentHost && currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+      if (envUrl) {
+        try {
+          const parsed = new URL(envUrl);
+          if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+            parsed.hostname = currentHost;
+            return parsed.toString().replace(/\/$/, '');
+          }
+        } catch {
+          // fallback
+        }
+      }
+      return `http://${currentHost}:5001`;
+    }
+  }
+  return envUrl || 'http://localhost:5001';
+};
+
+const SOCKET_URL = resolveSocketUrl();
 
 class DealerSocketService {
   private socket: Socket | null = null;

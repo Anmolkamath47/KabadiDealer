@@ -63,15 +63,13 @@ const DealerSchema = new Schema<IDealer>(
     },
     businessName: {
       type: String,
-      required: true,
       trim: true,
-      default: 'GreenEarth Scrap Hub',
+      default: 'Scrap Collection Center',
     },
     contactPerson: {
       type: String,
-      required: true,
       trim: true,
-      default: 'Ramesh Kumar',
+      default: 'Partner Dealer',
     },
     profileImage: {
       type: String,

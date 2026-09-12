@@ -63,7 +63,7 @@ export class DealerAuthService {
         dealerId,
         phone: standardPhone,
         businessName: businessName?.trim() || 'Scrap Collection Center',
-        contactPerson: contactPerson?.trim() || businessName?.trim() || '',
+        contactPerson: contactPerson?.trim() || 'Partner Dealer',
         isOnline: true,
         isBusy: false,
         rating: 5.0,

@@ -15,8 +15,8 @@ const startServer = async () => {
     const httpServer = createServer(app);
     initSocketServer(httpServer);
 
-    // 3. Start listening on Port 5001
-    httpServer.listen(config.port, () => {
+    // 3. Start listening on Port 5001 on all interfaces (0.0.0.0)
+    httpServer.listen(config.port, '0.0.0.0', () => {
       console.log(`
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                                                                   ║

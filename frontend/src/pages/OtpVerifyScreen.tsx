@@ -9,7 +9,6 @@ export const OtpVerifyScreen: React.FC = () => {
   const { verifyOtpAndLogin, requestOtp } = useDealerAuth();
 
   const phone = (location.state as any)?.phone || '';
-  const demoOtp = (location.state as any)?.demoOtp || '1234';
 
   const [otp, setOtp] = useState(['', '', '', '']);
   const [error, setError] = useState<string | null>(null);
@@ -114,30 +113,7 @@ export const OtpVerifyScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* Demo Mode Badge */}
-        <div className="mt-4 bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800 shadow-2xs">
-          <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>
-              <strong>Demo Mode Active:</strong> Use OTP{' '}
-              <span className="font-mono font-black bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-900">
-                {demoOtp}
-              </span>
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setOtp(demoOtp.split(''));
-              setError(null);
-            }}
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline ml-2 cursor-pointer"
-          >
-            Auto-fill
-          </button>
-        </div>
-
-        <form onSubmit={handleVerify} className="mt-6 space-y-5">
+        <form onSubmit={handleVerify} className="mt-8 space-y-5">
           <div className="flex justify-between gap-2 max-w-xs mx-auto">
             {otp.map((digit, idx) => (
               <input
