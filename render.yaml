@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: kabadidealer-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_APP_URL
+        sync: false
+      - key: KABADIWALA_API_URL
+        sync: false
+      - key: DEALER_SERVICE_API_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: USE_MEMORY_DB
+        value: "false"
+      - key: OTP_DEMO_CODE
+        value: "1234"
+      - key: PICKUP_REQUEST_TIMEOUT_SECONDS
+        value: "60"

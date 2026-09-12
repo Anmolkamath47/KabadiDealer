@@ -1,0 +1,46 @@
+{
+  "name": "kabadidealer-backend",
+  "version": "1.0.0",
+  "description": "Kabadidealer Scrap Dealer & Collector Backend API & Real-time Server",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "tsx src/tests/run-tests.ts",
+    "test:lifecycle": "tsx src/tests/cross-app-lifecycle.test.ts"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "scrap-dealer",
+    "kabadidealer",
+    "recycling",
+    "driver-app",
+    "socketio"
+  ],
+  "author": "Kabadidealer Team",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.20.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb-memory-server": "^10.1.4",
+    "mongoose": "^8.10.1",
+    "socket.io": "^4.8.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}
