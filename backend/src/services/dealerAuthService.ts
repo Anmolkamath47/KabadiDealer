@@ -15,7 +15,7 @@ export class DealerAuthService {
     return {
       message: 'OTP sent successfully to your dealer mobile number',
       expiresAt,
-      ...(process.env.NODE_ENV === 'development' ? { demoOtp: otp } : {}),
+      demoOtp: otp,
     };
   }
 
@@ -52,6 +52,7 @@ export class DealerAuthService {
         phone: cleanPhone,
         businessName: businessName?.trim() || 'Scrap Collection Center',
         contactPerson: contactPerson?.trim() || businessName?.trim() || '',
+        isProfileCompleted: true,
         isOnline: true,
         isBusy: false,
         rating: 5.0,
