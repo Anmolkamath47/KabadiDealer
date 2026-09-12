@@ -4,49 +4,112 @@ import { DealerOrder, DealerProfile, FinalWeightItem, ScrapRateItem } from '../t
 export const dealerOrderService = {
   // Dealer Profile & Controls
   async getProfile(): Promise<DealerProfile> {
-    const res = await api.get('/dealers/profile');
-    return res.data.data;
+    try {
+      const res = await api.get('/dealers/profile');
+      return res.data.data;
+    } catch (err) {
+      const cached = localStorage.getItem('kabadidealer_dealer');
+      if (cached) return JSON.parse(cached);
+      throw err;
+    }
   },
 
   async updateProfile(updates: any): Promise<DealerProfile> {
-    const res = await api.patch('/dealers/profile', updates);
-    return res.data.data;
+    try {
+      const res = await api.patch('/dealers/profile', updates);
+      return res.data.data;
+    } catch (err) {
+      const cached = localStorage.getItem('kabadidealer_dealer');
+      if (cached) {
+        const merged = { ...JSON.parse(cached), ...updates };
+        localStorage.setItem('kabadidealer_dealer', JSON.stringify(merged));
+        return merged;
+      }
+      throw err;
+    }
   },
 
   async updateLocation(coords: [number, number], address?: string, landmark?: string): Promise<any> {
-    const res = await api.put('/dealers/location', { coordinates: coords, address, landmark });
-    return res.data.data;
+    try {
+      const res = await api.put('/dealers/location', { coordinates: coords, address, landmark });
+      return res.data.data;
+    } catch (err) {
+      const cached = localStorage.getItem('kabadidealer_dealer');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        parsed.location = {
+          type: 'Point',
+          coordinates: coords,
+          address: address || parsed.location?.address || '',
+          landmark: landmark || parsed.location?.landmark || '',
+        };
+        localStorage.setItem('kabadidealer_dealer', JSON.stringify(parsed));
+      }
+      return { coordinates: coords, address, landmark };
+    }
   },
 
   async setOnlineStatus(isOnline: boolean): Promise<{ isOnline: boolean }> {
-    const res = await api.patch('/dealers/status', { isOnline });
-    return res.data.data;
+    try {
+      const res = await api.patch('/dealers/status', { isOnline });
+      return res.data.data;
+    } catch {
+      return { isOnline };
+    }
   },
 
   async getScrapPrices(): Promise<ScrapRateItem[]> {
-    const res = await api.get('/dealers/prices');
-    return res.data.data;
+    try {
+      const res = await api.get('/dealers/prices');
+      return res.data.data;
+    } catch {
+      const cached = localStorage.getItem('kabadidealer_dealer');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.scrapRates) return parsed.scrapRates;
+      }
+      return [];
+    }
   },
 
   async updateScrapPrices(scrapRates: ScrapRateItem[]): Promise<ScrapRateItem[]> {
-    const res = await api.put('/dealers/prices', { scrapRates });
-    return res.data.data;
+    try {
+      const res = await api.put('/dealers/prices', { scrapRates });
+      return res.data.data;
+    } catch {
+      return scrapRates;
+    }
   },
 
   // Order Actions
   async getActiveOrder(): Promise<DealerOrder | null> {
-    const res = await api.get('/orders/active');
-    return res.data.data;
+    try {
+      const res = await api.get('/orders/active');
+      return res.data.data;
+    } catch {
+      const saved = localStorage.getItem('kabadidealer_active_order');
+      return saved ? JSON.parse(saved) : null;
+    }
   },
 
   async getOrderDetails(orderId: string): Promise<DealerOrder> {
-    const res = await api.get(`/orders/${orderId}`);
-    return res.data.data;
+    try {
+      const res = await api.get(`/orders/${orderId}`);
+      return res.data.data;
+    } catch {
+      const saved = localStorage.getItem('kabadidealer_active_order');
+      if (saved) return JSON.parse(saved);
+      throw new Error('Order not found');
+    }
   },
 
   async getOrderHistory(page: number = 1, limit: number = 20): Promise<{ orders: DealerOrder[]; total: number; pages: number }> {
-    const res = await api.get('/orders/history', { params: { page, limit } });
-    return res.data.data;
+    try {
+      const res = await api.get('/orders/history', { params: { page, limit } });
+      return res.data.data;
+    } catch {
+      return { orders: [], total: 0, pages: 1 };
+    }
   },
 
   async acceptOrder(orderId: string, coords?: [number, number]): Promise<DealerOrder> {

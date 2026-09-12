@@ -1,25 +1,47 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
+const isPrivateNetworkHost = (host: string): boolean => {
+  return /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host);
+};
+
 const resolveApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (typeof window !== 'undefined' && window.location) {
-    const currentHost = window.location.hostname;
-    if (currentHost && currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-      if (envUrl) {
-        try {
-          const parsed = new URL(envUrl);
-          if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
-            parsed.hostname = currentHost;
-            return parsed.toString().replace(/\/$/, '');
-          }
-        } catch {
-          // fallback
+
+  // 1. If explicit environment variable is configured and not pointing to localhost, ALWAYS use it directly
+  if (envUrl) {
+    try {
+      const parsed = new URL(envUrl);
+      if (parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') {
+        return envUrl.replace(/\/$/, '');
+      }
+      // If configured as localhost, only rewrite if accessing via private LAN Wi-Fi network (mobile test)
+      if (typeof window !== 'undefined' && window.location) {
+        const currentHost = window.location.hostname;
+        if (isPrivateNetworkHost(currentHost)) {
+          parsed.hostname = currentHost;
+          return parsed.toString().replace(/\/$/, '');
         }
       }
-      return `http://${currentHost}:5001/api`;
+      return envUrl.replace(/\/$/, '');
+    } catch {
+      return envUrl;
     }
   }
-  return envUrl || 'http://localhost:5001/api';
+
+  // 2. Check runtime environment
+  if (typeof window !== 'undefined' && window.location) {
+    const currentHost = window.location.hostname;
+    // Local LAN Wi-Fi testing
+    if (isPrivateNetworkHost(currentHost)) {
+      return `http://${currentHost}:5001/api`;
+    }
+    // Deployed on Vercel or any HTTPS domain without VITE_API_BASE_URL configured
+    if (window.location.protocol === 'https:' || currentHost.includes('vercel.app')) {
+      return '/api';
+    }
+  }
+
+  return 'http://localhost:5001/api';
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -76,10 +98,16 @@ api.interceptors.response.use(
 
     // User-friendly network/timeout message when backend is unreachable
     if (!error.response) {
+      const isCloud = typeof window !== 'undefined' && (window.location.protocol === 'https:' || window.location.hostname.includes('vercel.app'));
+
       if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
-        error.message = 'Backend is taking too long to respond. Please ensure the backend server is running on port 5001 and try again.';
+        error.message = isCloud
+          ? 'Backend is taking too long to respond. If using Render free tier, it may be waking up (please retry in 30s).'
+          : 'Backend server is taking too long to respond. Please ensure the backend is running on port 5001 and try again.';
       } else {
-        error.message = 'Unable to reach Kabadidealer backend (port 5001). Please check if the backend server is running.';
+        error.message = isCloud
+          ? 'Unable to connect to backend server. Please verify VITE_API_BASE_URL is configured in your Vercel Project Settings.'
+          : 'Unable to reach Kabadidealer backend (port 5001). Please check if the backend server is running.';
       }
     }
 
