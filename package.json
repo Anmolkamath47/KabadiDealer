@@ -1,0 +1,13 @@
+{
+  "name": "kabadidealer-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kabadidealer Root Monorepo Runner for Render and Cloud Providers",
+  "scripts": {
+    "build": "npm --prefix backend install --include=dev && npm --prefix backend run build",
+    "start": "npm --prefix backend run start"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
