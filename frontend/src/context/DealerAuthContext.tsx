@@ -87,6 +87,11 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.warn('Socket connection deferred:', socketErr);
     }
 
+    broadcastDealerEvent({
+      type: 'DEALER_ONLINE',
+      dealer: data.dealer,
+    });
+
     return {
       isNewDealer: data.isNewDealer,
       isProfileCompleted: !!data.dealer.isProfileCompleted,
@@ -94,12 +99,29 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   };
 
+const broadcastDealerEvent = (event: any) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const channel = new BroadcastChannel('kabadiwala_cross_app_sync');
+    channel.postMessage({ ...event, timestamp: Date.now() });
+    channel.close();
+  } catch {
+    // BroadcastChannel unsupported or restricted
+  }
+};
+
   const toggleOnlineStatus = async (status: boolean) => {
     await dealerOrderService.setOnlineStatus(status);
     if (dealer) {
       const updated = { ...dealer, isOnline: status };
       setDealer(updated);
       localStorage.setItem('kabadidealer_dealer', JSON.stringify(updated));
+      broadcastDealerEvent({
+        type: 'DEALER_STATUS_CHANGED',
+        dealerId: dealer.dealerId,
+        isOnline: status,
+        location: dealer.location,
+      });
     }
   };
 
@@ -107,6 +129,10 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const updated = await dealerOrderService.updateProfile(updates);
     setDealer(updated);
     localStorage.setItem('kabadidealer_dealer', JSON.stringify(updated));
+    broadcastDealerEvent({
+      type: 'DEALER_PROFILE_UPDATED',
+      dealer: updated,
+    });
     return updated;
   };
 
@@ -124,6 +150,12 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
       setDealer(updated);
       localStorage.setItem('kabadidealer_dealer', JSON.stringify(updated));
+      broadcastDealerEvent({
+        type: 'DEALER_LOCATION_UPDATED',
+        dealerId: dealer.dealerId,
+        isOnline: dealer.isOnline,
+        location: updated.location,
+      });
     }
   };
 
