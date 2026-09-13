@@ -111,6 +111,7 @@ export interface DealerOrder {
   otpVerifiedAt?: string;
   finalWeights?: FinalWeightItem[];
   finalTotalAmount?: number;
+  scrapPhoto?: string;
   dealerLiveLocation?: DealerLiveLocation;
   rating?: {
     score: number;

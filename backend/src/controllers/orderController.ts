@@ -31,6 +31,7 @@ export const CompleteOrderSchema = z.object({
     )
     .min(1, 'At least one weighed scrap item required'),
   finalTotalAmount: z.number().optional(),
+  scrapPhoto: z.string().optional(),
 });
 
 export const UpdateOrderStatusSchema = z.object({
@@ -269,12 +270,13 @@ export class OrderController {
   ): Promise<void> {
     try {
       const orderId = req.params.orderId as string;
-      const { finalWeights, finalTotalAmount } = req.body;
+      const { finalWeights, finalTotalAmount, scrapPhoto } = req.body;
       const order = await OrderEngineService.completeOrder(
         orderId,
         req.dealer!.dealerId,
         finalWeights as any,
-        finalTotalAmount
+        finalTotalAmount,
+        scrapPhoto
       );
       res.status(200).json({
         success: true,

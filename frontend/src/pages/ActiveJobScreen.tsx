@@ -26,6 +26,9 @@ import {
   Radio,
   Star,
   MessageSquare,
+  Camera,
+  Eye,
+  X,
 } from 'lucide-react';
 
 export const ActiveJobScreen: React.FC = () => {
@@ -49,6 +52,7 @@ export const ActiveJobScreen: React.FC = () => {
   const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
   const [isSimulatingDrive, setIsSimulatingDrive] = useState(false);
   const [isGpsTracking, setIsGpsTracking] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<boolean>(false);
 
   const prevCoordsRef = useRef<[number, number] | null>(null);
   const simIntervalRef = useRef<any>(null);
@@ -185,8 +189,8 @@ export const ActiveJobScreen: React.FC = () => {
     }
   };
 
-  const handleCompleteSettlement = async (finalWeights: any[], finalTotal: number) => {
-    await completeOrder(activeOrder.orderId, finalWeights, finalTotal);
+  const handleCompleteSettlement = async (finalWeights: any[], finalTotal: number, scrapPhoto?: string) => {
+    await completeOrder(activeOrder.orderId, finalWeights, finalTotal, scrapPhoto);
     setShowWeighingModal(false);
   };
 
@@ -466,6 +470,38 @@ export const ActiveJobScreen: React.FC = () => {
                 </div>
               </div>
 
+              {/* Collected Scrap Photo Proof Card */}
+              {activeOrder.scrapPhoto && (
+                <div className="bg-white border-2 border-emerald-200 rounded-2xl p-3.5 text-left space-y-2.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5 text-xs font-black text-slate-800">
+                      <Camera className="w-4 h-4 text-emerald-600" />
+                      <span>Collected Scrap Photo</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Verified Proof
+                    </span>
+                  </div>
+
+                  <div
+                    onClick={() => setPreviewPhoto(true)}
+                    className="relative h-44 rounded-xl overflow-hidden cursor-pointer group bg-slate-950 border border-slate-200 shadow-2xs"
+                  >
+                    <img
+                      src={activeOrder.scrapPhoto}
+                      alt="Collected Scrap"
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/25 group-hover:bg-black/10 transition flex items-center justify-center">
+                      <span className="bg-slate-900/80 backdrop-blur-md text-white text-xs font-bold py-1.5 px-3 rounded-xl flex items-center space-x-1.5 opacity-90 group-hover:opacity-100 transition shadow-md">
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Tap to View Full Photo</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Customer Rating & Review Section */}
               {activeOrder.rating ? (
                 <div className="bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 border-2 border-amber-200 p-4 rounded-2xl text-left space-y-3 shadow-xs">
@@ -573,6 +609,47 @@ export const ActiveJobScreen: React.FC = () => {
         onComplete={handleCompleteSettlement}
         isLoading={isLoading}
       />
+
+      {/* Full Photo Preview Modal */}
+      {previewPhoto && activeOrder.scrapPhoto && (
+        <div
+          onClick={() => setPreviewPhoto(false)}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl relative"
+          >
+            <div className="p-3 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between text-white">
+              <div className="flex items-center space-x-2 text-xs font-bold">
+                <Camera className="w-4 h-4 text-emerald-400" />
+                <span>Collected Scrap Proof</span>
+              </div>
+              <button
+                onClick={() => setPreviewPhoto(false)}
+                className="p-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="relative max-h-[70vh] overflow-hidden bg-black flex items-center justify-center">
+              <img
+                src={activeOrder.scrapPhoto}
+                alt="Collected Scrap Full View"
+                className="w-full max-h-[70vh] object-contain"
+              />
+            </div>
+
+            <div className="p-3 bg-slate-800 text-slate-300 text-xs flex items-center justify-between">
+              <span>Order #{activeOrder.orderId}</span>
+              <span className="text-emerald-400 font-bold">
+                ₹{activeOrder.finalTotalAmount || activeOrder.estimatedTotalAmount} Paid
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

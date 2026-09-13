@@ -1,13 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDealerOrder } from '../context/DealerOrderContext';
 import { DealerHeader } from '../components/layout/DealerHeader';
 import { DealerBottomNav } from '../components/layout/DealerBottomNav';
-import { Calendar, Truck, PackageX, ChevronRight, Star, MessageSquare } from 'lucide-react';
+import { Calendar, Truck, PackageX, ChevronRight, Star, MessageSquare, Camera, Eye, X } from 'lucide-react';
+import { DealerOrder } from '../types';
 
 export const OrderHistoryScreen: React.FC = () => {
   const navigate = useNavigate();
   const { orderHistory, fetchHistory, isLoading } = useDealerOrder();
+  const [selectedPhotoOrder, setSelectedPhotoOrder] = useState<DealerOrder | null>(null);
 
   useEffect(() => {
     fetchHistory();
@@ -79,6 +81,37 @@ export const OrderHistoryScreen: React.FC = () => {
                   📍 {order.pickupAddress}
                 </div>
 
+                {/* Scrap Collection Photo Proof */}
+                {order.scrapPhoto && (
+                  <div
+                    onClick={() => setSelectedPhotoOrder(order)}
+                    className="bg-slate-50 border border-slate-200 hover:border-emerald-300 rounded-2xl p-2.5 flex items-center justify-between cursor-pointer transition group shadow-2xs"
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200">
+                        <img
+                          src={order.scrapPhoto}
+                          alt="Collected Scrap"
+                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                          <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Collected Scrap Photo</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Tap to view verified scrap proof
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 group-hover:bg-emerald-600 group-hover:text-white px-2 py-1 rounded-lg flex items-center space-x-1 transition">
+                      <Eye className="w-3 h-3" />
+                      <span>View</span>
+                    </span>
+                  </div>
+                )}
+
                 {/* Customer Rating & Review Card */}
                 {order.rating ? (
                   <div className="bg-amber-50/60 border border-amber-200/70 p-2.5 rounded-2xl space-y-1.5">
@@ -136,6 +169,52 @@ export const OrderHistoryScreen: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Full Scrap Photo Modal */}
+      {selectedPhotoOrder && selectedPhotoOrder.scrapPhoto && (
+        <div
+          onClick={() => setSelectedPhotoOrder(null)}
+          className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl relative"
+          >
+            <div className="p-3.5 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between text-white">
+              <div className="flex items-center space-x-2 text-xs font-bold">
+                <Camera className="w-4 h-4 text-emerald-400" />
+                <span>Scrap Proof · #{selectedPhotoOrder.orderId}</span>
+              </div>
+              <button
+                onClick={() => setSelectedPhotoOrder(null)}
+                className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="relative max-h-[65vh] overflow-hidden bg-black flex items-center justify-center">
+              <img
+                src={selectedPhotoOrder.scrapPhoto}
+                alt="Collected Scrap Full View"
+                className="w-full max-h-[65vh] object-contain"
+              />
+            </div>
+
+            <div className="p-3.5 bg-slate-800 text-slate-300 text-xs space-y-1">
+              <div className="flex items-center justify-between font-bold">
+                <span className="text-white">Customer: {selectedPhotoOrder.customerName}</span>
+                <span className="text-emerald-400 text-sm">
+                  ₹{selectedPhotoOrder.finalTotalAmount || selectedPhotoOrder.estimatedTotalAmount} Paid
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-400 truncate">
+                📍 {selectedPhotoOrder.pickupAddress}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <DealerBottomNav />
     </div>

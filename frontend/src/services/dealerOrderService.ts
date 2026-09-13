@@ -155,10 +155,16 @@ export const dealerOrderService = {
     return res.data.data;
   },
 
-  async completeOrder(orderId: string, finalWeights: FinalWeightItem[], finalTotalAmount?: number): Promise<DealerOrder> {
+  async completeOrder(
+    orderId: string,
+    finalWeights: FinalWeightItem[],
+    finalTotalAmount?: number,
+    scrapPhoto?: string
+  ): Promise<DealerOrder> {
     const res = await api.post(`/orders/${orderId}/complete`, {
       finalWeights,
       finalTotalAmount,
+      scrapPhoto,
     });
     return res.data.data;
   },

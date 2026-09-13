@@ -28,6 +28,7 @@ export interface IDealerOrder extends Document {
   otpVerifiedAt?: Date;
   finalWeights?: FinalWeightItem[];
   finalTotalAmount?: number;
+  scrapPhoto?: string;
   dealerLiveLocation?: DealerLiveLocationUpdate;
   rating?: {
     score: number;
@@ -172,6 +173,9 @@ const DealerOrderSchema = new Schema<IDealerOrder>(
     finalWeights: [FinalWeightSchema],
     finalTotalAmount: {
       type: Number,
+    },
+    scrapPhoto: {
+      type: String,
     },
     dealerLiveLocation: {
       coordinates: { type: [Number] },

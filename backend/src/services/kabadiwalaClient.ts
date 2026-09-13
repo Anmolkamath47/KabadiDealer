@@ -21,6 +21,7 @@ export class KabadiwalaClient {
       note?: string;
       finalWeights?: FinalWeightItem[];
       finalTotalAmount?: number;
+      scrapPhoto?: string;
       dealerLocation?: any;
     } = {}
   ): Promise<boolean> {
@@ -34,6 +35,7 @@ export class KabadiwalaClient {
           note: options.note,
           finalWeights: options.finalWeights,
           finalTotalAmount: options.finalTotalAmount,
+          scrapPhoto: options.scrapPhoto,
           dealerLocation: options.dealerLocation,
         },
         {

@@ -438,7 +438,8 @@ export class OrderEngineService {
     orderId: string,
     dealerId: string,
     finalWeights: FinalWeightItem[],
-    finalTotalAmount?: number
+    finalTotalAmount?: number,
+    scrapPhoto?: string
   ): Promise<IDealerOrder> {
     const order = await DealerOrder.findOne({ orderId, dealerId });
     if (!order) {
@@ -455,6 +456,9 @@ export class OrderEngineService {
     order.status = 'COMPLETED';
     order.finalWeights = finalWeights;
     order.finalTotalAmount = calculatedTotal;
+    if (scrapPhoto) {
+      order.scrapPhoto = scrapPhoto;
+    }
     order.statusHistory.push({
       status: 'COMPLETED',
       timestamp: new Date(),
@@ -472,6 +476,7 @@ export class OrderEngineService {
       note: 'Scrap weighed and payment settled.',
       finalWeights,
       finalTotalAmount: calculatedTotal,
+      scrapPhoto,
     });
 
     dealerSocketEvents.emitOrderStatusUpdate(orderId, dealerId, 'COMPLETED', {

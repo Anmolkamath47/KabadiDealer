@@ -19,7 +19,7 @@ interface DealerOrderContextType {
   sendLiveLocation: (coords: [number, number], heading?: number, speed?: number) => Promise<void>;
   markArrived: (orderId: string) => Promise<void>;
   verifyOtp: (orderId: string, otp: string) => Promise<boolean>;
-  completeOrder: (orderId: string, finalWeights: FinalWeightItem[], finalTotal?: number) => Promise<void>;
+  completeOrder: (orderId: string, finalWeights: FinalWeightItem[], finalTotal?: number, scrapPhoto?: string) => Promise<void>;
   fetchActiveOrder: () => Promise<DealerOrder | null>;
   fetchHistory: () => Promise<void>;
   dismissIncomingAlert: () => void;
@@ -341,14 +341,15 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const completeOrder = async (
     orderId: string,
     finalWeights: FinalWeightItem[],
-    finalTotal?: number
+    finalTotal?: number,
+    scrapPhoto?: string
   ) => {
     setIsLoading(true);
     try {
-      const order = await dealerOrderService.completeOrder(orderId, finalWeights, finalTotal);
+      const order = await dealerOrderService.completeOrder(orderId, finalWeights, finalTotal, scrapPhoto);
       setActiveOrder(order);
       setIsLoading(false);
-      showToast('💰 Pickup Completed! Payment receipt generated.');
+      showToast('💰 Pickup Completed! Payment receipt & scrap photo saved.');
     } catch (err: any) {
       setIsLoading(false);
       throw err;
