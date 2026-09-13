@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { OrderEngineService } from '../services/orderEngineService.js';
 import { Dealer } from '../models/Dealer.js';
 import { DealerOrder } from '../models/DealerOrder.js';
+import { dealerSocketEvents } from '../sockets/socketManager.js';
 
 export const IncomingPickupSchema = z.object({
   orderId: z.string(),
@@ -78,10 +79,20 @@ export class InternalConsumerController {
       dealer.totalRatings = newTotal;
       await dealer.save();
 
-      // Optionally attach note to DealerOrder status history if present
+      const ratingRecord = {
+        score,
+        feedback: feedback ? String(feedback).trim() : '',
+        tags: Array.isArray(tags) ? tags : [],
+        createdAt: new Date(),
+      };
+
+      // Save structured rating onto DealerOrder record
       await DealerOrder.findOneAndUpdate(
         { orderId },
         {
+          $set: {
+            rating: ratingRecord,
+          },
           $push: {
             statusHistory: {
               status: 'RATED',
@@ -93,13 +104,27 @@ export class InternalConsumerController {
         }
       );
 
+      // Instantly broadcast live rating event to dealer socket
+      dealerSocketEvents.emitOrderRated(dealer.dealerId, {
+        orderId,
+        dealerId: dealer.dealerId,
+        score,
+        feedback: ratingRecord.feedback,
+        tags: ratingRecord.tags,
+        rating: dealer.rating,
+        totalRatings: dealer.totalRatings,
+        createdAt: ratingRecord.createdAt.toISOString(),
+      });
+
       res.status(200).json({
         success: true,
         message: 'Rating successfully synchronized to dealer profile',
         data: {
           dealerId: dealer.dealerId,
+          orderId,
           rating: dealer.rating,
           totalRatings: dealer.totalRatings,
+          customerRating: ratingRecord,
         },
       });
     } catch (error: any) {

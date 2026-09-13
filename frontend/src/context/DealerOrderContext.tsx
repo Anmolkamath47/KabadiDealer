@@ -151,7 +151,60 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
     });
 
-    // 4. Fallback poll interval every 3 seconds for instant detection
+    // 4. Live Customer Rating & Review Notification
+    const cleanupRated = dealerSocketService.onOrderRated((data) => {
+      console.log('⭐ Customer rating received via socket:', data);
+      showToast(`⭐ Customer gave you a ${data.score}-Star Rating & Review!`);
+      setActiveOrder((prev) => {
+        if (prev && prev.orderId === data.orderId) {
+          const updated = {
+            ...prev,
+            rating: {
+              score: data.score,
+              feedback: data.feedback,
+              tags: data.tags,
+              createdAt: data.createdAt || new Date().toISOString(),
+            },
+          };
+          localStorage.setItem('kabadidealer_active_order', JSON.stringify(updated));
+          return updated;
+        }
+        return prev;
+      });
+      fetchHistory();
+    });
+
+    // 5. Cross-tab BroadcastChannel listener for instant demo sync
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('kabadiwala_cross_app_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'KABADI_RATING_SUBMITTED' && event.data.rating) {
+          const r = event.data.rating;
+          console.log('⭐ Customer rating received via cross-tab channel:', r);
+          showToast(`⭐ Customer gave you a ${r.score}-Star Rating & Review!`);
+          setActiveOrder((prev) => {
+            if (prev && prev.orderId === r.orderId) {
+              const updated = {
+                ...prev,
+                rating: {
+                  score: r.score,
+                  feedback: r.feedback,
+                  tags: r.tags,
+                  createdAt: r.createdAt || new Date().toISOString(),
+                },
+              };
+              localStorage.setItem('kabadidealer_active_order', JSON.stringify(updated));
+              return updated;
+            }
+            return prev;
+          });
+          fetchHistory();
+        }
+      };
+    } catch {}
+
+    // 6. Fallback poll interval every 3 seconds for instant detection
     const pollInterval = setInterval(() => {
       fetchActiveOrder();
     }, 3000);
@@ -161,6 +214,8 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
       cleanupIncoming();
       cleanupStatus();
       cleanupLocation();
+      cleanupRated();
+      channel?.close();
       stopAlarm();
     };
   }, [isAuthenticated, dealer?.dealerId]);

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDealerOrder } from '../context/DealerOrderContext';
 import { DealerHeader } from '../components/layout/DealerHeader';
 import { DealerBottomNav } from '../components/layout/DealerBottomNav';
-import { Calendar, Truck, PackageX, ChevronRight } from 'lucide-react';
+import { Calendar, Truck, PackageX, ChevronRight, Star, MessageSquare } from 'lucide-react';
 
 export const OrderHistoryScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -78,6 +78,59 @@ export const OrderHistoryScreen: React.FC = () => {
                 <div className="text-[11px] text-slate-500 truncate">
                   📍 {order.pickupAddress}
                 </div>
+
+                {/* Customer Rating & Review Card */}
+                {order.rating ? (
+                  <div className="bg-amber-50/60 border border-amber-200/70 p-2.5 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${
+                                s <= order.rating!.score
+                                  ? 'text-amber-400 fill-amber-400'
+                                  : 'text-slate-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="font-extrabold text-amber-950 ml-1 text-xs">
+                          {order.rating.score}.0
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-amber-700 font-semibold bg-amber-100/80 px-2 py-0.5 rounded-full">
+                        Customer Review
+                      </span>
+                    </div>
+
+                    {order.rating.feedback && (
+                      <p className="text-xs text-slate-700 italic flex items-start space-x-1.5 pl-0.5">
+                        <MessageSquare className="w-3 h-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <span>"{order.rating.feedback}"</span>
+                      </p>
+                    )}
+
+                    {order.rating.tags && order.rating.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {order.rating.tags.map((tag: string, i: number) => (
+                          <span
+                            key={i}
+                            className="text-[9px] font-bold bg-white text-emerald-800 border border-emerald-200/80 px-1.5 py-0.5 rounded-md shadow-2xs"
+                          >
+                            ✓ {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-slate-400 flex items-center space-x-1 pl-1">
+                    <Star className="w-3 h-3 text-slate-300" />
+                    <span>No customer rating submitted yet</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

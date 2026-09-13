@@ -112,6 +112,12 @@ export interface DealerOrder {
   finalWeights?: FinalWeightItem[];
   finalTotalAmount?: number;
   dealerLiveLocation?: DealerLiveLocation;
+  rating?: {
+    score: number;
+    feedback?: string;
+    tags?: string[];
+    createdAt?: string;
+  };
   expiresAt: string;
   rejectionReason?: string;
   notes?: string;

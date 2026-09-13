@@ -112,6 +112,15 @@ export const dealerOrderService = {
     }
   },
 
+  async getDealerReviews(): Promise<{ reviews: any[]; count: number }> {
+    try {
+      const res = await api.get('/orders/reviews');
+      return res.data.data;
+    } catch {
+      return { reviews: [], count: 0 };
+    }
+  },
+
   async acceptOrder(orderId: string, coords?: [number, number]): Promise<DealerOrder> {
     const res = await api.post(`/orders/${orderId}/accept`, { coordinates: coords });
     return res.data.data;

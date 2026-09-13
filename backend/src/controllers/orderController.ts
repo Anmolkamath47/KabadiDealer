@@ -100,6 +100,21 @@ export class OrderController {
     }
   }
 
+  static async getDealerReviews(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const result = await OrderEngineService.getDealerReviews(
+        req.dealer!.dealerId
+      );
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async acceptOrder(
     req: AuthenticatedDealerRequest,
     res: Response,

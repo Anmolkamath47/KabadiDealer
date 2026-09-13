@@ -148,4 +148,16 @@ export const dealerSocketEvents = {
       updatedAt: locationData.updatedAt,
     });
   },
+
+  /**
+   * Broadcast customer rating and review live to dealer
+   */
+  emitOrderRated: (dealerId: string, ratingData: any) => {
+    if (!ioInstance) return;
+    console.log(`⭐ Emitting pickup:rated to dealer:${dealerId}`);
+    ioInstance.to(`dealer:${dealerId}`).to('dealers:all').emit('pickup:rated', ratingData);
+    if (ratingData.orderId) {
+      ioInstance.to(`order:${ratingData.orderId}`).emit('pickup:rated', ratingData);
+    }
+  },
 };

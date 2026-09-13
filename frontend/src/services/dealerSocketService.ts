@@ -108,6 +108,25 @@ class DealerSocketService {
     };
   }
 
+  onOrderRated(
+    callback: (data: {
+      orderId: string;
+      dealerId?: string;
+      score: number;
+      feedback?: string;
+      tags?: string[];
+      rating?: number;
+      totalRatings?: number;
+      createdAt?: string;
+    }) => void
+  ) {
+    if (!this.socket) this.connect();
+    this.socket?.on('pickup:rated', callback);
+    return () => {
+      this.socket?.off('pickup:rated', callback);
+    };
+  }
+
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();

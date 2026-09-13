@@ -29,6 +29,12 @@ export interface IDealerOrder extends Document {
   finalWeights?: FinalWeightItem[];
   finalTotalAmount?: number;
   dealerLiveLocation?: DealerLiveLocationUpdate;
+  rating?: {
+    score: number;
+    feedback?: string;
+    tags?: string[];
+    createdAt?: Date;
+  };
   expiresAt: Date;
   rejectionReason?: string;
   notes?: string;
@@ -174,6 +180,12 @@ const DealerOrderSchema = new Schema<IDealerOrder>(
       updatedAt: { type: Date },
       etaMinutes: { type: Number },
       distanceKm: { type: Number },
+    },
+    rating: {
+      score: { type: Number, min: 1, max: 5 },
+      feedback: { type: String },
+      tags: [{ type: String }],
+      createdAt: { type: Date },
     },
     expiresAt: {
       type: Date,

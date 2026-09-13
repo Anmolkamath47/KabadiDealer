@@ -24,6 +24,8 @@ import {
   Pause,
   RotateCcw,
   Radio,
+  Star,
+  MessageSquare,
 } from 'lucide-react';
 
 export const ActiveJobScreen: React.FC = () => {
@@ -463,6 +465,74 @@ export const ActiveJobScreen: React.FC = () => {
                   ₹{activeOrder.finalTotalAmount || activeOrder.estimatedTotalAmount}
                 </div>
               </div>
+
+              {/* Customer Rating & Review Section */}
+              {activeOrder.rating ? (
+                <div className="bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 border-2 border-amber-200 p-4 rounded-2xl text-left space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                      <span className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                        Customer Rating & Review
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                      Verified Customer
+                    </span>
+                  </div>
+
+                  {/* Stars Display */}
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-5 h-5 ${
+                            s <= activeOrder.rating!.score
+                              ? 'text-amber-400 fill-amber-400'
+                              : 'text-slate-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm font-extrabold text-slate-900">
+                      {activeOrder.rating.score}.0 / 5.0
+                    </span>
+                  </div>
+
+                  {/* Feedback Comment */}
+                  {activeOrder.rating.feedback && (
+                    <div className="bg-white/90 p-3 rounded-xl border border-amber-100/80 text-xs text-slate-700 italic flex items-start space-x-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <span className="font-medium">"{activeOrder.rating.feedback}"</span>
+                    </div>
+                  )}
+
+                  {/* Tags */}
+                  {activeOrder.rating.tags && activeOrder.rating.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {activeOrder.rating.tags.map((tag: string, i: number) => (
+                        <span
+                          key={i}
+                          className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md"
+                        >
+                          ✓ {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-dashed border-slate-300 p-4 rounded-2xl text-center space-y-2">
+                  <div className="flex items-center justify-center space-x-1 text-xs font-bold text-slate-600">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping mr-1"></span>
+                    <span>Waiting for Customer Rating...</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    The customer is reviewing their pickup experience. Your feedback will appear here in real time.
+                  </p>
+                </div>
+              )}
 
               <button
                 onClick={() => navigate('/')}

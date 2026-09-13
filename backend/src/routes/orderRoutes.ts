@@ -16,6 +16,7 @@ router.use(requireDealerAuth);
 
 router.get('/active', OrderController.getActiveOrder);
 router.get('/history', OrderController.getOrderHistory);
+router.get('/reviews', OrderController.getDealerReviews);
 router.get('/:orderId', OrderController.getOrderDetails);
 router.post('/:orderId/accept', OrderController.acceptOrder);
 router.post('/:orderId/reject', validateRequest(RejectOrderSchema), OrderController.rejectOrder);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User,
@@ -19,8 +19,10 @@ import {
   Camera,
   Mail,
   Upload,
+  MessageSquare,
 } from 'lucide-react';
 import { useDealerAuth } from '../context/DealerAuthContext';
+import { dealerOrderService } from '../services/dealerOrderService';
 import { DealerHeader } from '../components/layout/DealerHeader';
 import { DealerBottomNav } from '../components/layout/DealerBottomNav';
 import { LogoutModal } from '../components/common/LogoutModal';
@@ -110,6 +112,37 @@ export const ProfileScreen: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  useEffect(() => {
+    dealerOrderService.getDealerReviews().then((res) => {
+      if (res.reviews && res.reviews.length > 0) {
+        setReviews(res.reviews);
+      } else {
+        // Fallback: check cached active order or completed orders with rating
+        const cachedActive = localStorage.getItem('kabadidealer_active_order');
+        if (cachedActive) {
+          try {
+            const parsed = JSON.parse(cachedActive);
+            if (parsed.rating && parsed.rating.score) {
+              setReviews([
+                {
+                  orderId: parsed.orderId,
+                  customerName: parsed.customerName || 'Customer',
+                  pickupAddress: parsed.pickupAddress,
+                  score: parsed.rating.score,
+                  feedback: parsed.rating.feedback,
+                  tags: parsed.rating.tags,
+                  date: parsed.rating.createdAt || parsed.createdAt,
+                },
+              ]);
+            }
+          } catch {}
+        }
+      }
+    });
+  }, []);
 
   const rating = dealer.rating || 5.0;
   const totalReviews = dealer.totalRatings || 0;
@@ -231,6 +264,81 @@ export const ProfileScreen: React.FC = () => {
             <span className="text-lg font-black text-slate-900">{dealer.activeRadiusKm || 15} km</span>
             <span className="text-[11px] text-slate-500 font-medium">Duty Radius</span>
           </div>
+        </div>
+
+        {/* Customer Reviews & Feedback Section */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-card">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Customer Reviews</h3>
+                <p className="text-[11px] text-slate-400">Ratings & verified pickup feedback</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+              ★ {rating} ({totalReviews})
+            </span>
+          </div>
+
+          {reviews.length === 0 ? (
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center space-y-1">
+              <p className="text-xs text-slate-600 font-semibold">No detailed reviews yet</p>
+              <p className="text-[11px] text-slate-400">
+                Customer ratings and reviews will appear here as pickups are completed.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {reviews.slice(0, 5).map((rev, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <div className="flex items-center space-x-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3 h-3 ${
+                              s <= rev.score ? 'text-amber-400 fill-amber-400' : 'text-slate-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs font-extrabold text-slate-800">{rev.customerName}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      #{rev.orderId}
+                    </span>
+                  </div>
+
+                  {rev.feedback && (
+                    <p className="text-xs text-slate-700 italic flex items-start space-x-1">
+                      <MessageSquare className="w-3 h-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <span>"{rev.feedback}"</span>
+                    </p>
+                  )}
+
+                  {rev.tags && rev.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {rev.tags.map((t: string, i: number) => (
+                        <span
+                          key={i}
+                          className="text-[9px] font-bold bg-white text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md"
+                        >
+                          ✓ {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Vehicle & Logistics Info */}

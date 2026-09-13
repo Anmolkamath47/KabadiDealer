@@ -521,4 +521,35 @@ export class OrderEngineService {
       pages: Math.ceil(total / limit),
     };
   }
+
+  /**
+   * Get all customer reviews and ratings for a dealer
+   */
+  static async getDealerReviews(
+    dealerId: string
+  ): Promise<{ reviews: any[]; count: number }> {
+    const orders = await DealerOrder.find({
+      dealerId,
+      'rating.score': { $exists: true },
+    })
+      .sort({ 'rating.createdAt': -1, updatedAt: -1 })
+      .select('orderId customerName pickupAddress rating finalTotalAmount estimatedTotalAmount createdAt updatedAt')
+      .lean();
+
+    const reviews = orders.map((o: any) => ({
+      orderId: o.orderId,
+      customerName: o.customerName || 'Customer',
+      pickupAddress: o.pickupAddress,
+      amountPaid: o.finalTotalAmount || o.estimatedTotalAmount,
+      score: o.rating?.score || 5,
+      feedback: o.rating?.feedback || '',
+      tags: o.rating?.tags || [],
+      date: o.rating?.createdAt || o.updatedAt || o.createdAt,
+    }));
+
+    return {
+      reviews,
+      count: reviews.length,
+    };
+  }
 }
