@@ -46,7 +46,7 @@ export class OrderEngineService {
       dealer = await Dealer.create({
         dealerId: data.dealerId,
         phone: '+919876543210',
-        businessName: 'GreenEarth Scrap Hub',
+        businessName: 'Scrap Collection Center',
         contactPerson: 'Partner Dealer',
         isOnline: true,
         isAvailable: true,

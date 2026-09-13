@@ -525,7 +525,7 @@ export const ProfileScreen: React.FC = () => {
               type="text"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="e.g. GreenEarth Scrap Hub"
+              placeholder="e.g. City Scrap Traders"
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
               required
             />

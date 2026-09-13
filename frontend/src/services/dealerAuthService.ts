@@ -58,7 +58,7 @@ export const dealerAuthService = {
           const demoProfile: DealerProfile = {
             dealerId: `DLR-${Date.now().toString().slice(-6)}`,
             phone: `+91${raw10Digits}`,
-            businessName: businessName?.trim() || 'GreenEarth Scrap Hub',
+            businessName: businessName?.trim() || 'Scrap Collection Center',
             contactPerson: contactPerson?.trim() || 'Partner Dealer',
             profileImage: '',
             email: '',
