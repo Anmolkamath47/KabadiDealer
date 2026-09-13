@@ -69,6 +69,8 @@ This repository contains the complete **Kabadidealer Partner Application** consi
 ## 3. Production Verification Checklist
 
 - [ ] `/api/health` on Render backend returns `{"status":"healthy"}`.
+- [ ] `/api/health/connectivity` returns `{"crossAppConnectivity": {"connected": true}}` confirming mutual connection with Kabadiwala backend.
 - [ ] Vercel frontend loads without CORS errors in browser console.
 - [ ] Direct page refresh on any subroute (e.g., `/duty`, `/map`, `/history`) works seamlessly thanks to `vercel.json` rewrites.
 - [ ] Socket.IO establishes connection for real-time dispatch alerts and live map navigation.
+

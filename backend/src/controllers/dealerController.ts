@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { DealerService } from '../services/dealerService.js';
+import { KabadiwalaClient } from '../services/kabadiwalaClient.js';
 import { AuthenticatedDealerRequest } from '../middleware/authMiddleware.js';
 
 export const UpdateProfileSchema = z.object({
@@ -69,6 +70,9 @@ export class DealerController {
   ): Promise<void> {
     try {
       const updated = await DealerService.updateProfile(req.dealer!.dealerId, req.body);
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
       res.status(200).json({
         success: true,
         message: 'Dealer profile updated successfully',
@@ -92,6 +96,9 @@ export class DealerController {
         address,
         landmark
       );
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
       res.status(200).json({
         success: true,
         message: 'Dealer location updated successfully',
@@ -110,6 +117,9 @@ export class DealerController {
     try {
       const { isOnline } = req.body;
       const updated = await DealerService.setOnlineStatus(req.dealer!.dealerId, isOnline);
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
       res.status(200).json({
         success: true,
         message: isOnline ? 'You are now ONLINE and ready for pickups' : 'You are now OFFLINE',
@@ -145,6 +155,9 @@ export class DealerController {
         req.dealer!.dealerId,
         req.body.scrapRates
       );
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
       res.status(200).json({
         success: true,
         message: 'Scrap buying rates updated successfully',

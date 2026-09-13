@@ -103,4 +103,51 @@ export class KabadiwalaClient {
       return false;
     }
   }
+
+  /**
+   * Forward live dealer presence (online/offline status & location) to Kabadiwala backend
+   */
+  static async notifyDealerPresence(dealer: any): Promise<boolean> {
+    if (!dealer || !dealer.dealerId) return false;
+    const raw = typeof dealer.toObject === 'function' ? dealer.toObject() : dealer;
+    const coords = raw.location?.coordinates;
+    const cleanCoords = Array.isArray(coords) && coords.length === 2 ? [Number(coords[0]), Number(coords[1])] : undefined;
+
+    try {
+      await axios.post(
+        `${config.kabadiwalaApiUrl}/internal/dealer-events/presence`,
+        {
+          dealerId: String(raw.dealerId),
+          phone: raw.phone ? String(raw.phone) : undefined,
+          businessName: raw.businessName,
+          contactPerson: raw.contactPerson,
+          isOnline: Boolean(raw.isOnline ?? true),
+          isAvailable: Boolean(raw.isAvailable ?? raw.isOnline ?? true),
+          rating: raw.rating,
+          totalRatings: raw.totalRatings,
+          location: cleanCoords
+            ? {
+                type: 'Point',
+                coordinates: cleanCoords,
+                address: raw.location?.address || raw.address,
+                landmark: raw.location?.landmark,
+              }
+            : undefined,
+          vehicleType: raw.vehicleType,
+          vehicleNumber: raw.vehicleNumber,
+          scrapRates: raw.scrapRates,
+          activeRadiusKm: raw.activeRadiusKm,
+        },
+        {
+          headers: this.getHeaders(),
+          timeout: 4000,
+        }
+      );
+      return true;
+    } catch (err: any) {
+      console.warn(`⚠️ [Kabadiwala Cross-App Sync] Dealer presence sync warning (${err.message}).`);
+      return false;
+    }
+  }
 }
+

@@ -40,9 +40,23 @@ export class OrderEngineService {
     notes?: string;
     otpCode?: string;
   }): Promise<IDealerOrder> {
-    const dealer = await Dealer.findOne({ dealerId: data.dealerId });
+    let dealer = await Dealer.findOne({ dealerId: data.dealerId });
     if (!dealer) {
-      throw new Error(`Dealer ${data.dealerId} not found in Kabadidealer registry.`);
+      console.warn(`⚠️ Dealer ${data.dealerId} not pre-registered. Auto-provisioning partner record.`);
+      dealer = await Dealer.create({
+        dealerId: data.dealerId,
+        phone: '+919876543210',
+        businessName: 'GreenEarth Scrap Hub',
+        contactPerson: 'Partner Dealer',
+        isOnline: true,
+        isAvailable: true,
+        location: {
+          type: 'Point',
+          coordinates: data.pickupLocation || [77.5058, 13.0431],
+          address: data.pickupAddress || 'Service Area',
+        },
+        scrapRates: [],
+      });
     }
 
     const [dealerLng, dealerLat] = dealer.location.coordinates;

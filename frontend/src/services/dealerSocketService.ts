@@ -33,7 +33,7 @@ const resolveSocketUrl = (): string => {
       return `http://${currentHost}:5001`;
     }
     if (window.location.protocol === 'https:' || currentHost.includes('vercel.app')) {
-      return window.location.origin;
+      return 'https://kabadidealer-backend.onrender.com';
     }
   }
 

@@ -1,6 +1,7 @@
 import { Dealer, IDealer } from '../models/Dealer.js';
 import { generateOtp, verifyOtpCode } from '../utils/otp.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
+import { KabadiwalaClient } from './kabadiwalaClient.js';
 
 export class DealerAuthService {
   /**
@@ -99,6 +100,8 @@ export class DealerAuthService {
     dealer.refreshTokenHash = refreshToken;
     dealer.lastActiveAt = new Date();
     await dealer.save();
+
+    KabadiwalaClient.notifyDealerPresence(dealer).catch(() => {});
 
     return {
       dealer,

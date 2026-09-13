@@ -97,7 +97,7 @@ export class DealerService {
       const [dealerLng, dealerLat] = dealer.location.coordinates;
       const distance = calculateDistanceKm(lat, lng, dealerLat, dealerLng);
 
-      const effectiveRadius = Math.min(radiusKm, dealer.activeRadiusKm || 15);
+      const effectiveRadius = radiusKm >= 100 ? radiusKm : Math.max(radiusKm, dealer.activeRadiusKm || 15);
       if (distance <= effectiveRadius) {
         results.push({
           dealerId: dealer.dealerId,

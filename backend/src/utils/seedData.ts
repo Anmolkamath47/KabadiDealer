@@ -61,6 +61,38 @@ export const initialDealers = [
       { category: 'Plastic', name: 'PET Bottles (Water / Soda)', unit: 'kg', pricePerKg: 18, minQuantityKg: 2, icon: 'bottle' },
     ],
   },
+  {
+    dealerId: 'DLR-BLR-001',
+    phone: '9886012345',
+    businessName: 'GreenEarth Scrap Hub',
+    contactPerson: 'Arjun Rao',
+    isOnline: true,
+    isBusy: false,
+    rating: 4.9,
+    totalRatings: 142,
+    activeRadiusKm: 15,
+    location: {
+      type: 'Point' as const,
+      coordinates: [77.5058, 13.04314] as [number, number],
+      address: 'Nele Maheshwaramma Temple Ward, Chokkasandra, Bengaluru - 560057',
+      landmark: 'Near Dasarahalli Peenya Scrap Zone',
+    },
+    vehicleType: 'Electric Scrap Loader',
+    vehicleNumber: 'KA 04 EV 1024',
+    scrapRates: [
+      { category: 'Paper', name: 'Newspaper (Raddi)', unit: 'kg', pricePerKg: 14, minQuantityKg: 5, icon: 'newspaper' },
+      { category: 'Paper', name: 'Books & Notebooks', unit: 'kg', pricePerKg: 12, minQuantityKg: 5, icon: 'book' },
+      { category: 'Cardboard', name: 'Corrugated Cardboard (Gatta)', unit: 'kg', pricePerKg: 10, minQuantityKg: 5, icon: 'box' },
+      { category: 'Plastic', name: 'Hard Plastics / Buckets / Mugs', unit: 'kg', pricePerKg: 16, minQuantityKg: 2, icon: 'wine' },
+      { category: 'Plastic', name: 'PET Bottles (Water / Soda)', unit: 'kg', pricePerKg: 20, minQuantityKg: 2, icon: 'bottle' },
+      { category: 'Metal', name: 'Iron / Steel Scrap (Loha)', unit: 'kg', pricePerKg: 34, minQuantityKg: 5, icon: 'wrench' },
+      { category: 'Aluminium', name: 'Aluminium Cans & Utensils', unit: 'kg', pricePerKg: 145, minQuantityKg: 1, icon: 'utensils' },
+      { category: 'Copper', name: 'Pure Copper Wire (Taamba)', unit: 'kg', pricePerKg: 490, minQuantityKg: 0.5, icon: 'zap' },
+      { category: 'Brass', name: 'Brass Items (Peetal)', unit: 'kg', pricePerKg: 340, minQuantityKg: 0.5, icon: 'shield' },
+      { category: 'E-Waste', name: 'Old Electronics & CPU Boards', unit: 'kg', pricePerKg: 55, minQuantityKg: 1, icon: 'cpu' },
+      { category: 'Glass', name: 'Glass Bottles', unit: 'kg', pricePerKg: 4, minQuantityKg: 5, icon: 'wine' },
+    ],
+  },
 ];
 
 export const seedInitialDealers = async (): Promise<void> => {

@@ -15,9 +15,10 @@ services:
       - key: CLIENT_APP_URL
         sync: false
       - key: KABADIWALA_API_URL
-        sync: false
+        value: "https://kabadiwala-backend.onrender.com/api"
       - key: DEALER_SERVICE_API_KEY
-        generateValue: true
+        value: "kbad_shared_internal_secret_key_9988"
+
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

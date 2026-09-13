@@ -37,7 +37,7 @@ const resolveApiBaseUrl = (): string => {
     }
     // Deployed on Vercel or any HTTPS domain without VITE_API_BASE_URL configured
     if (window.location.protocol === 'https:' || currentHost.includes('vercel.app')) {
-      return '/api';
+      return 'https://kabadidealer-backend.onrender.com/api';
     }
   }
 
