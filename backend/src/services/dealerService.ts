@@ -90,10 +90,15 @@ export class DealerService {
     lng: number,
     radiusKm: number = 15
   ): Promise<any[]> {
+    const DUMMY_IDS = new Set(['DLR-BLR-001', 'DLR-RAMESH-001', 'DLR-SURESH-002', 'DLR-530794']);
+    const DUMMY_NAMES = new Set(['GreenEarth Scrap Hub', 'Ramesh Green Recycling', 'Verma Scrap & Metals', 'Arun Scrap Traders']);
+
     const activeDealers = await Dealer.find({ isOnline: true }).lean();
     const results: any[] = [];
 
     for (const dealer of activeDealers) {
+      if (DUMMY_IDS.has(dealer.dealerId) || DUMMY_NAMES.has(dealer.businessName)) continue;
+
       const [dealerLng, dealerLat] = dealer.location.coordinates;
       const distance = calculateDistanceKm(lat, lng, dealerLat, dealerLng);
 
