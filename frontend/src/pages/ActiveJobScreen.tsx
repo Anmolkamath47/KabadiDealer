@@ -16,14 +16,7 @@ import {
   CheckCircle2,
   KeyRound,
   Scale,
-  Sparkles,
   Check,
-  AlertCircle,
-  Navigation,
-  Play,
-  Pause,
-  RotateCcw,
-  Radio,
   Star,
   MessageSquare,
   Camera,
@@ -48,21 +41,15 @@ export const ActiveJobScreen: React.FC = () => {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [showWeighingModal, setShowWeighingModal] = useState(false);
-  const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
-  const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
-  const [isSimulatingDrive, setIsSimulatingDrive] = useState(false);
-  const [isGpsTracking, setIsGpsTracking] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<boolean>(false);
 
   const prevCoordsRef = useRef<[number, number] | null>(null);
-  const simIntervalRef = useRef<any>(null);
 
   const vehicleInfo = getVehicleDetails(dealer?.vehicleType);
 
   // Background Device GPS Watcher (Real-time tracking)
   useEffect(() => {
     if (!activeOrder || !['ACCEPTED', 'DEALER_EN_ROUTE'].includes(activeOrder.status)) {
-      setIsGpsTracking(false);
       return;
     }
 
@@ -73,7 +60,6 @@ export const ActiveJobScreen: React.FC = () => {
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        setIsGpsTracking(true);
         const newCoords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
 
         let heading = pos.coords.heading || 0;
@@ -91,7 +77,6 @@ export const ActiveJobScreen: React.FC = () => {
       },
       (err) => {
         console.warn('Geolocation watcher warning:', err.message);
-        setIsGpsTracking(false);
       },
       {
         enableHighAccuracy: true,
@@ -104,39 +89,6 @@ export const ActiveJobScreen: React.FC = () => {
       navigator.geolocation.clearWatch(watchId);
     };
   }, [activeOrder?.orderId, activeOrder?.status]);
-
-  // Automated Road Drive Simulation Loop (for testing & desktop demos)
-  useEffect(() => {
-    if (isSimulatingDrive && routePoints.length > 0) {
-      simIntervalRef.current = setInterval(() => {
-        setCurrentRouteIndex((prevIdx) => {
-          if (prevIdx >= routePoints.length - 1) {
-            setIsSimulatingDrive(false);
-            if (simIntervalRef.current) clearInterval(simIntervalRef.current);
-            return prevIdx;
-          }
-
-          const nextIdx = prevIdx + 1;
-          const targetPoint = routePoints[nextIdx]; // [lat, lng]
-          const prevPoint = routePoints[Math.max(0, nextIdx - 1)];
-          const bearing = mapService.calculateBearing(prevPoint, targetPoint);
-          const coords: [number, number] = [targetPoint[1], targetPoint[0]];
-
-          sendLiveLocation(coords, bearing, 28);
-          return nextIdx;
-        });
-      }, 1500);
-    } else {
-      if (simIntervalRef.current) {
-        clearInterval(simIntervalRef.current);
-        simIntervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (simIntervalRef.current) clearInterval(simIntervalRef.current);
-    };
-  }, [isSimulatingDrive, routePoints]);
 
   if (!activeOrder) {
     return (
@@ -194,36 +146,6 @@ export const ActiveJobScreen: React.FC = () => {
     setShowWeighingModal(false);
   };
 
-  const toggleSimulateDrive = () => {
-    setIsSimulatingDrive((prev) => !prev);
-  };
-
-  const stepForwardRoad = () => {
-    if (routePoints.length === 0) {
-      const baseLng = activeOrder.pickupLocation.coordinates[0];
-      const baseLat = activeOrder.pickupLocation.coordinates[1];
-      sendLiveLocation([baseLng + 0.001, baseLat + 0.001], 45, 22);
-      return;
-    }
-    const stepJump = Math.max(1, Math.floor(routePoints.length / 8));
-    const nextIdx = Math.min(routePoints.length - 1, currentRouteIndex + stepJump);
-    setCurrentRouteIndex(nextIdx);
-
-    const targetPoint = routePoints[nextIdx];
-    const prevPoint = routePoints[Math.max(0, nextIdx - 1)];
-    const bearing = mapService.calculateBearing(prevPoint, targetPoint);
-    sendLiveLocation([targetPoint[1], targetPoint[0]], bearing, 28);
-  };
-
-  const resetRoadSimulation = () => {
-    setIsSimulatingDrive(false);
-    setCurrentRouteIndex(0);
-    if (routePoints.length > 0) {
-      const start = routePoints[0];
-      sendLiveLocation([start[1], start[0]], 0, 0);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 max-w-md mx-auto flex flex-col justify-between shadow-2xl pb-16 relative">
       <Toast />
@@ -273,68 +195,7 @@ export const ActiveJobScreen: React.FC = () => {
               }
               vehicleType={dealer?.vehicleType || 'Electric Scrap Loader'}
               onSendLivePing={(coords: [number, number]) => sendLiveLocation(coords, 45, 25)}
-              onRouteCalculated={(route) => {
-                setRoutePoints(route.coordinates);
-              }}
             />
-
-            {/* Live GPS Status Indicator & Testing Controls */}
-            <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-card space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      isGpsTracking ? 'bg-emerald-500 animate-ping' : 'bg-amber-400 animate-pulse'
-                    }`}
-                  />
-                  <span className="text-xs font-bold text-slate-800">
-                    {isGpsTracking ? 'Device Real GPS Tracking Active' : 'Live Road GPS Ready'}
-                  </span>
-                </div>
-
-                <div className="flex items-center space-x-1 text-[11px] font-semibold text-slate-500">
-                  <Radio className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Cross-App Sync</span>
-                </div>
-              </div>
-
-              {/* Simulation buttons for testing on desktop / non-moving devices */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={toggleSimulateDrive}
-                  className={`text-xs font-bold px-3 py-2 rounded-xl transition shadow-xs flex items-center space-x-1.5 ${
-                    isSimulatingDrive
-                      ? 'bg-rose-600 hover:bg-rose-700 text-white'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  }`}
-                >
-                  {isSimulatingDrive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  <span>{isSimulatingDrive ? 'Pause Drive' : 'Auto Drive Along Road'}</span>
-                </button>
-
-                <div className="flex items-center space-x-1">
-                  <button
-                    type="button"
-                    onClick={stepForwardRoad}
-                    title="Step forward 1 segment"
-                    className="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-xl transition flex items-center space-x-1"
-                  >
-                    <Navigation className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Advance</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={resetRoadSimulation}
-                    title="Reset to starting hub"
-                    className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
 
             {/* Action buttons depending on state */}
             {activeOrder.status === 'ACCEPTED' ? (
