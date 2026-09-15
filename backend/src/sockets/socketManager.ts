@@ -54,6 +54,26 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
       }
     });
 
+    socket.on('dealer:location:ping', async (data: { orderId: string; dealerId?: string; coordinates: [number, number]; heading?: number; speed?: number }) => {
+      try {
+        if (data.orderId && data.coordinates && Array.isArray(data.coordinates)) {
+          const { OrderEngineService } = await import('../services/orderEngineService.js');
+          const dId = data.dealerId || dealerId;
+          if (dId) {
+            await OrderEngineService.updateLiveLocation(
+              data.orderId,
+              dId,
+              data.coordinates,
+              data.heading || 0,
+              data.speed || 0
+            );
+          }
+        }
+      } catch (err: any) {
+        console.warn('⚠️ Dealer socket location update warning:', err.message);
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       console.log(`🔌 Dealer socket disconnected: ${socket.id} (${reason})`);
     });

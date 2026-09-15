@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { DealerOrder, FinalWeightItem, OrderStatus } from '../types';
 import { dealerOrderService } from '../services/dealerOrderService';
 import { dealerSocketService } from '../services/dealerSocketService';
@@ -286,6 +286,8 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
+  const lastHttpPingRef = useRef<number>(0);
+
   const sendLiveLocation = async (coords: [number, number], heading: number = 0, speed: number = 0) => {
     if (!activeOrder) return;
     // Optimistically update activeOrder live location
@@ -304,10 +306,24 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
       };
     });
 
-    try {
-      await dealerOrderService.sendLiveLocation(activeOrder.orderId, coords, heading, speed);
-    } catch {
-      // Ignore background ping errors
+    // 1. High-priority real-time WebSocket streaming (0ms delay)
+    const socketSent = dealerSocketService.sendLiveLocation(
+      activeOrder.orderId,
+      dealer?.dealerId || activeOrder.dealerId,
+      coords,
+      heading,
+      speed
+    );
+
+    // 2. Persist to HTTP API throttled (or immediate if socket not connected)
+    const now = Date.now();
+    if (!socketSent || now - lastHttpPingRef.current > 4000) {
+      lastHttpPingRef.current = now;
+      try {
+        await dealerOrderService.sendLiveLocation(activeOrder.orderId, coords, heading, speed);
+      } catch {
+        // Ignore background ping errors
+      }
     }
   };
 

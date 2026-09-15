@@ -287,19 +287,20 @@ export class OrderEngineService {
       distanceKm,
     };
 
-    order.dealerLiveLocation = locationUpdate;
-    await order.save();
-
-    // Also update dealer's base location
-    await Dealer.findOneAndUpdate(
-      { dealerId },
-      { location: { type: 'Point', coordinates: coords, address: 'In Transit' } }
-    );
-
-    // Sync live GPS with Kabadiwala consumer backend
-    await KabadiwalaClient.sendLiveLocation(orderId, dealerId, coords, heading, speed);
-
+    // 1. Immediately stream live location to dealer socket and sync to consumer backend
     dealerSocketEvents.emitLiveLocation(orderId, dealerId, locationUpdate);
+    const syncPromise = KabadiwalaClient.sendLiveLocation(orderId, dealerId, coords, heading, speed);
+
+    // 2. Persist to DB in parallel
+    order.dealerLiveLocation = locationUpdate;
+    await Promise.all([
+      order.save(),
+      Dealer.findOneAndUpdate(
+        { dealerId },
+        { location: { type: 'Point', coordinates: coords, address: 'In Transit' } }
+      ),
+      syncPromise,
+    ]);
 
     return order;
   }

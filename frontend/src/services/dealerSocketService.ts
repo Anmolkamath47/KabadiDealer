@@ -108,6 +108,26 @@ class DealerSocketService {
     };
   }
 
+  sendLiveLocation(
+    orderId: string,
+    dealerId: string,
+    coordinates: [number, number],
+    heading: number = 0,
+    speed: number = 0
+  ): boolean {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('dealer:location:ping', {
+        orderId,
+        dealerId,
+        coordinates,
+        heading,
+        speed,
+      });
+      return true;
+    }
+    return false;
+  }
+
   onOrderRated(
     callback: (data: {
       orderId: string;

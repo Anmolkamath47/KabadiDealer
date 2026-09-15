@@ -106,34 +106,83 @@ export class DealerLeafletMapService {
     return { map, switchLayer };
   }
 
+  // Realistic 3D Blue Navigation Arrow Marker matching turn-by-turn HUD design
+  buildNavigationArrowIcon(heading: number = 0): L.DivIcon {
+    const safeHeading = heading || 0;
+    return L.divIcon({
+      className: 'nav-arrow-marker-wrap',
+      html: `
+        <div style="transform: rotate(${safeHeading}deg); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); width: 44px; height: 44px;" class="relative flex items-center justify-center pointer-events-none">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));">
+            <path d="M20 4L34 34L20 27L6 34L20 4Z" fill="#1D68FF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M20 7L30.5 30L20 24.5L9.5 30L20 7Z" fill="#2563EB"/>
+            <path d="M20 7L9.5 30L20 24.5V7Z" fill="#1E40AF" opacity="0.3"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22],
+    });
+  }
+
+  // Pulsing Arrived Location Beacon (Blue core with soft pulsating concentric radar rings)
+  buildArrivalBeaconIcon(): L.DivIcon {
+    return L.divIcon({
+      className: 'nav-arrival-beacon-wrap',
+      html: `
+        <div class="relative flex items-center justify-center pointer-events-none" style="width: 70px; height: 70px;">
+          <!-- Outer Pulsing Glow -->
+          <div class="absolute w-14 h-14 rounded-full bg-blue-500/25 animate-ping" style="animation-duration: 2.2s;"></div>
+          <!-- Mid Glow Ring -->
+          <div class="absolute w-16 h-16 rounded-full bg-blue-400/20 border border-blue-400/30"></div>
+          <!-- Center Solid Dot with White Ring -->
+          <div class="relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-xl z-10 ring-4 ring-blue-500/30"></div>
+        </div>
+      `,
+      iconSize: [70, 70],
+      iconAnchor: [35, 35],
+    });
+  }
+
+  // Red Destination Map Pin with location text label matching design
+  buildRedDestinationPinIcon(label: string = 'Destination'): L.DivIcon {
+    const cleanLabel = label.split(',')[0].trim() || 'Destination';
+    return L.divIcon({
+      className: 'nav-red-destination-pin-wrap',
+      html: `
+        <div class="relative flex items-center pointer-events-none" style="white-space: nowrap;">
+          <div class="relative flex flex-col items-center">
+            <svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));">
+              <path d="M14 0C6.26801 0 0 6.26801 0 14C0 24.5 14 36 14 36C14 36 28 24.5 28 14C28 6.26801 21.732 0 14 0Z" fill="#EA4335"/>
+              <circle cx="14" cy="13" r="5" fill="#B31412"/>
+              <circle cx="14" cy="13" r="2.5" fill="#FFFFFF"/>
+            </svg>
+            <div class="w-2 h-1 rounded-full bg-slate-900/60 mt-0.5"></div>
+          </div>
+          ${
+            cleanLabel
+              ? `<div class="ml-1.5 -mt-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg shadow-lg border border-slate-200/80 text-[11px] font-extrabold text-slate-800 max-w-[170px] truncate leading-tight tracking-tight">${cleanLabel}</div>`
+              : ''
+          }
+        </div>
+      `,
+      iconSize: [32, 40],
+      iconAnchor: [14, 38],
+    });
+  }
+
   createCustomerMarker(
     map: L.Map,
     coords?: MapCoordinates,
     title: string = 'Customer Pickup Doorstep'
   ): L.Marker {
     const validCoords = sanitizeCoords(coords);
-    const customerIcon = L.divIcon({
-      className: 'custom-customer-pin-wrap',
-      html: `
-        <div class="relative flex items-center justify-center">
-          <div class="absolute w-12 h-12 rounded-full bg-emerald-500/30 animate-ping"></div>
-          <div class="relative w-10 h-10 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white z-10">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-            </svg>
-          </div>
-          <div class="absolute -bottom-1 w-3 h-3 bg-emerald-700 rotate-45 z-0 shadow-sm"></div>
-        </div>
-      `,
-      iconSize: [40, 44],
-      iconAnchor: [20, 42],
-      popupAnchor: [0, -42],
-    });
+    const customerIcon = this.buildRedDestinationPinIcon(title);
 
     const marker = L.marker([validCoords.lat, validCoords.lng], { icon: customerIcon }).addTo(map);
     marker.bindPopup(`
       <div style="font-family: system-ui, sans-serif; padding: 4px;">
-        <strong style="color: #059669; font-size: 13px;">📍 ${title}</strong>
+        <strong style="color: #EA4335; font-size: 13px;">📍 ${title}</strong>
         <div style="font-size: 11px; color: #475569; margin-top: 2px;">Customer Scrap Collection Point</div>
       </div>
     `);
@@ -308,6 +357,34 @@ export class DealerLeafletMapService {
     });
 
     const routeGroup = L.featureGroup([shadowLine, mainLine]).addTo(map);
+    return routeGroup;
+  }
+
+  // Draw high-visibility turn-by-turn Navigation Route in vibrant royal blue matching the mockup
+  drawNavigationRoute(map: L.Map, pathCoordinates: [number, number][]): L.FeatureGroup {
+    if (!pathCoordinates || pathCoordinates.length === 0) {
+      return L.featureGroup().addTo(map);
+    }
+
+    // High contrast darker blue casing/border
+    const outerCasing = L.polyline(pathCoordinates, {
+      color: '#1E40AF',
+      weight: 8,
+      opacity: 0.35,
+      lineCap: 'round',
+      lineJoin: 'round',
+    });
+
+    // Vivid navigation blue main route line
+    const navRouteLine = L.polyline(pathCoordinates, {
+      color: '#1D68FF',
+      weight: 6,
+      opacity: 0.98,
+      lineCap: 'round',
+      lineJoin: 'round',
+    });
+
+    const routeGroup = L.featureGroup([outerCasing, navRouteLine]).addTo(map);
     return routeGroup;
   }
 
