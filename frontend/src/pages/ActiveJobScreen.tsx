@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDealerOrder } from '../context/DealerOrderContext';
 import { useDealerAuth } from '../context/DealerAuthContext';
-import { DealerNavigationMap } from '../components/map/DealerNavigationMap';
-import { DealerNavigationExperience, NavigationPhase } from '../components/map/DealerNavigationExperience';
+import { DealerLiveMap } from '../components/map/DealerLiveMap';
 import { mapService } from '../services/mapService';
 import { DigitalWeighingModal } from '../components/order/DigitalWeighingModal';
 import { Toast } from '../components/common/Toast';
@@ -23,8 +22,6 @@ import {
   Camera,
   Eye,
   X,
-  Navigation,
-  ExternalLink,
 } from 'lucide-react';
 
 export const ActiveJobScreen: React.FC = () => {
@@ -39,16 +36,6 @@ export const ActiveJobScreen: React.FC = () => {
     completeOrder,
     isLoading,
   } = useDealerOrder();
-
-  const [isLiveNavigationOpen, setIsLiveNavigationOpen] = useState<boolean>(() => {
-    return activeOrder?.status === 'DEALER_EN_ROUTE';
-  });
-
-  useEffect(() => {
-    if (activeOrder?.status === 'DEALER_EN_ROUTE') {
-      setIsLiveNavigationOpen(true);
-    }
-  }, [activeOrder?.status]);
 
   const [enteredOtp, setEnteredOtp] = useState(['', '', '', '']);
   const [otpError, setOtpError] = useState<string | null>(null);
@@ -93,8 +80,8 @@ export const ActiveJobScreen: React.FC = () => {
       },
       {
         enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 6000,
+        maximumAge: 2000,
+        timeout: 10000,
       }
     );
 
@@ -121,61 +108,10 @@ export const ActiveJobScreen: React.FC = () => {
 
   const handleStartTrip = async () => {
     await startTrip(activeOrder.orderId);
-    setIsLiveNavigationOpen(true);
   };
 
   const handleMarkArrived = async () => {
     await markArrived(activeOrder.orderId);
-    setIsLiveNavigationOpen(false);
-  };
-
-  // Full-Screen Turn-By-Turn Navigation Experience matching Mockups
-  if (
-    isLiveNavigationOpen &&
-    activeOrder &&
-    ['ACCEPTED', 'DEALER_EN_ROUTE', 'ARRIVED'].includes(activeOrder.status)
-  ) {
-    const navPhase: NavigationPhase =
-      activeOrder.status === 'ARRIVED' ? 'arrived' : 'en_route';
-
-    return (
-      <DealerNavigationExperience
-        customerCoords={activeOrder.pickupLocation.coordinates}
-        customerAddress={activeOrder.pickupAddress}
-        customerName={activeOrder.customerName}
-        customerPhone={activeOrder.customerPhone}
-        dealerCoords={
-          activeOrder.dealerLiveLocation?.coordinates || dealer?.location?.coordinates
-        }
-        initialPhase={navPhase}
-        onBack={() => setIsLiveNavigationOpen(false)}
-        onEndNavigation={() => setIsLiveNavigationOpen(false)}
-        onMarkAsArrived={async () => {
-          await handleMarkArrived();
-        }}
-        onSendLivePing={(coords) => sendLiveLocation(coords, 45, 25)}
-      />
-    );
-  }
-
-  const handleSimulateStepCloser = () => {
-    if (!activeOrder) return;
-    const custCoords = activeOrder.pickupLocation.coordinates;
-    const currentCoords =
-      activeOrder.dealerLiveLocation?.coordinates || dealer?.location?.coordinates || [
-        custCoords[0] + 0.007,
-        custCoords[1] + 0.006,
-      ];
-
-    // Move 25% closer towards customer
-    const stepLng = Number((currentCoords[0] + (custCoords[0] - currentCoords[0]) * 0.25).toFixed(6));
-    const stepLat = Number((currentCoords[1] + (custCoords[1] - currentCoords[1]) * 0.25).toFixed(6));
-    const bearing = mapService.calculateBearing(
-      [currentCoords[1], currentCoords[0]],
-      [custCoords[1], custCoords[0]]
-    );
-
-    sendLiveLocation([stepLng, stepLat], bearing, 26);
   };
 
   const handleOtpChange = (index: number, val: string) => {
@@ -247,14 +183,13 @@ export const ActiveJobScreen: React.FC = () => {
       </div>
 
       <div className="p-4 space-y-4 overflow-y-auto flex-1">
-        {/* ================= STAGE 1: ACCEPTED & STAGE 2: DEALER_EN_ROUTE (Interactive Turn-By-Turn Driving Navigation) ================= */}
+        {/* ================= STAGE 1: ACCEPTED & STAGE 2: DEALER_EN_ROUTE (Interactive Live Navigation Map) ================= */}
         {['ACCEPTED', 'DEALER_EN_ROUTE'].includes(activeOrder.status) && (
           <div className="space-y-4">
-            {/* Turn-by-turn Navigation Map directed to customer */}
-            <DealerNavigationMap
+            {/* Live Navigation Map */}
+            <DealerLiveMap
               customerCoords={activeOrder.pickupLocation.coordinates}
               customerAddress={activeOrder.pickupAddress}
-              customerName={activeOrder.customerName}
               dealerCoords={
                 activeOrder.dealerLiveLocation?.coordinates || dealer?.location?.coordinates
               }
@@ -262,7 +197,7 @@ export const ActiveJobScreen: React.FC = () => {
               onSendLivePing={(coords: [number, number]) => sendLiveLocation(coords, 45, 25)}
             />
 
-            {/* Action controls based on state */}
+            {/* Action buttons depending on state */}
             {activeOrder.status === 'ACCEPTED' ? (
               <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-card space-y-3">
                 <div className="flex items-center justify-between text-xs">
@@ -283,71 +218,19 @@ export const ActiveJobScreen: React.FC = () => {
                   disabled={isLoading}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-md"
                 >
-                  <Navigation className="w-5 h-5 fill-white" />
-                  <span>START TRIP & NAVIGATION TO CUSTOMER</span>
+                  <Truck className="w-5 h-5" />
+                  <span>START TRIP / NAVIGATION (EN ROUTE)</span>
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {/* External Navigation & Quick Info Card */}
-                <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-card space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 pr-2">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Destination Customer Doorstep
-                      </div>
-                      <div className="text-xs font-black text-slate-900 truncate mt-0.5">
-                        {activeOrder.pickupAddress}
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        Customer: {activeOrder.customerName || 'Customer'}
-                      </div>
-                    </div>
-
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${activeOrder.pickupLocation.coordinates[1]},${activeOrder.pickupLocation.coordinates[0]}&travelmode=driving`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-2xl shadow-md flex items-center space-x-1.5 flex-shrink-0 transition active:scale-95"
-                    >
-                      <Navigation className="w-4 h-4 fill-white" />
-                      <span>Google Maps</span>
-                      <ExternalLink className="w-3.5 h-3.5 opacity-80" />
-                    </a>
-                  </div>
-
-                  {/* Desktop Simulator / Test Quick Step */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400">Desktop GPS Simulation:</span>
-                    <button
-                      type="button"
-                      onClick={handleSimulateStepCloser}
-                      className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 underline"
-                    >
-                      Simulate Drive 100m Closer
-                    </button>
-                  </div>
-                </div>
-
-                {/* Primary Button to launch Fullscreen 3-Stage Navigation */}
-                <button
-                  type="button"
-                  onClick={() => setIsLiveNavigationOpen(true)}
-                  className="w-full bg-[#046A38] hover:bg-[#03542C] text-white font-black py-3.5 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-md active:scale-95 ring-2 ring-emerald-500/20"
-                >
-                  <Navigation className="w-5 h-5 fill-white" />
-                  <span>OPEN LIVE TURN-BY-TURN NAVIGATION HUD</span>
-                </button>
-
-                <button
-                  onClick={handleMarkArrived}
-                  disabled={isLoading}
-                  className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-4 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-lg"
-                >
-                  <MapPin className="w-5 h-5" />
-                  <span>I HAVE ARRIVED AT DOORSTEP</span>
-                </button>
-              </div>
+              <button
+                onClick={handleMarkArrived}
+                disabled={isLoading}
+                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-4 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-lg"
+              >
+                <MapPin className="w-5 h-5" />
+                <span>I HAVE ARRIVED AT DOORSTEP</span>
+              </button>
             )}
           </div>
         )}
@@ -391,14 +274,6 @@ export const ActiveJobScreen: React.FC = () => {
                 >
                   <Check className="w-4 h-4" />
                   <span>{isVerifyingOtp ? 'Verifying OTP...' : 'VERIFY OTP & START WEIGHING'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsLiveNavigationOpen(true)}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 transition"
-                >
-                  <Navigation className="w-3.5 h-3.5 fill-slate-700 text-slate-700" />
-                  <span>View Live Navigation Map</span>
                 </button>
               </form>
             </div>
