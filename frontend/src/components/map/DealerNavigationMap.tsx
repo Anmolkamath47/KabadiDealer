@@ -15,12 +15,7 @@ import {
   ArrowUp,
   Compass,
   Gauge,
-  Navigation,
-  ExternalLink,
   MapPin,
-  ListOrdered,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 
 interface DealerNavigationMapProps {
@@ -56,7 +51,6 @@ export const DealerNavigationMap: React.FC<DealerNavigationMapProps> = ({
 
   const [tileMode, setTileMode] = useState<MapTileMode>('street');
   const [routeInfo, setRouteInfo] = useState<DrivingRouteResult | null>(null);
-  const [showStepsDrawer, setShowStepsDrawer] = useState<boolean>(false);
 
   const defaultLat = 28.6328;
   const defaultLng = 77.2167;
@@ -239,11 +233,6 @@ export const DealerNavigationMap: React.FC<DealerNavigationMapProps> = ({
     }
   };
 
-  const handleOpenGoogleMaps = () => {
-    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${validCustLat},${validCustLng}&travelmode=driving`;
-    window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
-  };
-
   const distanceKm = routeInfo?.distanceKm || 1.4;
   const etaMins = routeInfo?.durationMins || 6;
   const nextStep = routeInfo?.steps?.[0]?.instruction || `Head towards ${customerName}'s doorstep`;
@@ -301,102 +290,34 @@ export const DealerNavigationMap: React.FC<DealerNavigationMapProps> = ({
         </div>
       </div>
 
-      {/* Expandable Step-by-Step Directions Drawer */}
-      {showStepsDrawer && routeInfo?.steps && routeInfo.steps.length > 0 && (
-        <div className="relative z-20 mx-3 mb-2 max-h-48 overflow-y-auto bg-slate-950/95 backdrop-blur-md rounded-2xl p-3 border border-emerald-500/40 text-white shadow-2xl space-y-2">
-          <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
-            <div className="flex items-center space-x-2 text-xs font-extrabold text-emerald-400">
-              <ListOrdered className="w-4 h-4" />
-              <span>Turn-By-Turn Route Steps</span>
-            </div>
-            <button
-              onClick={() => setShowStepsDrawer(false)}
-              className="text-[10px] text-slate-400 hover:text-white uppercase font-bold"
-            >
-              Close
-            </button>
-          </div>
-          <div className="space-y-1.5">
-            {routeInfo.steps.map((step, idx) => (
-              <div
-                key={idx}
-                className="flex items-start justify-between text-xs py-1 border-b border-slate-900/60 last:border-none"
-              >
-                <div className="flex items-start space-x-2 min-w-0 pr-2">
-                  <span className="text-[10px] font-mono text-emerald-400 font-bold mt-0.5">
-                    {idx + 1}.
-                  </span>
-                  <span className="text-slate-200 truncate">{step.instruction}</span>
-                </div>
-                {step.distanceMeters ? (
-                  <span className="text-[10px] text-slate-400 font-semibold flex-shrink-0">
-                    {step.distanceMeters > 1000
-                      ? `${(step.distanceMeters / 1000).toFixed(1)} km`
-                      : `${step.distanceMeters} m`}
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Bottom Floating Navigation Controls */}
       <div className="relative z-10 p-3 flex items-end justify-between">
-        {/* Left Side: Destination Info Pill & Steps Toggle */}
-        <div className="flex flex-col space-y-2">
-          <div className="bg-slate-950/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-lg border border-slate-700 flex items-center space-x-2 text-xs font-bold pointer-events-none">
-            <Compass className="w-4 h-4 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
-            <span>{distanceKm} km remaining to Doorstep</span>
-          </div>
-
-          {routeInfo?.steps && routeInfo.steps.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowStepsDrawer(!showStepsDrawer)}
-              className="bg-slate-900/95 hover:bg-slate-800 text-emerald-400 px-3 py-1.5 rounded-xl shadow-lg border border-slate-700 flex items-center space-x-1.5 text-xs font-bold transition active:scale-95"
-            >
-              <ListOrdered className="w-3.5 h-3.5" />
-              <span>{showStepsDrawer ? 'Hide Directions' : 'View Turn Steps'}</span>
-              {showStepsDrawer ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-            </button>
-          )}
+        {/* Left Side: Destination Info Pill */}
+        <div className="bg-slate-950/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl shadow-lg border border-slate-700 flex items-center space-x-2 text-xs font-bold pointer-events-none">
+          <Compass className="w-4 h-4 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
+          <span>{distanceKm} km remaining to Doorstep</span>
         </div>
 
-        {/* Right Side: Primary Open in Google Maps Button & Controls */}
-        <div className="flex flex-col space-y-2 items-end">
-          {/* Primary 1-Tap Google Maps Launch */}
+        {/* Right Side: Map Layer and Recenter Controls */}
+        <div className="flex items-center space-x-2">
           <button
             type="button"
-            onClick={handleOpenGoogleMaps}
-            className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl shadow-2xl border border-emerald-400 flex items-center space-x-2 text-xs font-black transition active:scale-95 ring-2 ring-emerald-500/40"
-            title="Launch Voice Turn-By-Turn Navigation in Google Maps"
+            onClick={handleToggleLayer}
+            className="px-2.5 h-9 bg-slate-900/90 hover:bg-slate-800 text-slate-200 rounded-xl shadow-xl border border-slate-700 flex items-center space-x-1 text-xs font-bold transition active:scale-95"
+            title="Toggle Streets / Satellite"
           >
-            <Navigation className="w-4 h-4 fill-white" />
-            <span>OPEN GOOGLE MAPS</span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+            <Layers className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="capitalize text-[11px]">{tileMode === 'street' ? 'Sat' : 'Map'}</span>
           </button>
 
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={handleToggleLayer}
-              className="px-2.5 h-9 bg-slate-900/90 hover:bg-slate-800 text-slate-200 rounded-xl shadow-xl border border-slate-700 flex items-center space-x-1 text-xs font-bold transition active:scale-95"
-              title="Toggle Streets / Satellite"
-            >
-              <Layers className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="capitalize text-[11px]">{tileMode === 'street' ? 'Sat' : 'Map'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleFollowDriver}
-              className="w-9 h-9 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-xl border border-emerald-400 flex items-center justify-center transition active:scale-95"
-              title="Center Camera on Driver Location"
-            >
-              <Locate className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleFollowDriver}
+            className="w-9 h-9 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-xl border border-emerald-400 flex items-center justify-center transition active:scale-95"
+            title="Center Camera on Driver Location"
+          >
+            <Locate className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
