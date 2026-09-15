@@ -33,7 +33,7 @@ export const DealerHeader: React.FC<DealerHeaderProps> = ({ title, showBack = fa
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-base font-bold text-slate-900 line-clamp-1">{title || 'Kabadidealer Partner'}</h1>
+            <h1 className="text-base font-bold text-slate-900 line-clamp-1">{title || 'Scrapify Dealer Patner'}</h1>
           </div>
         ) : (
           <div className="flex items-center space-x-3 flex-1 min-w-0 pr-2">
@@ -41,11 +41,13 @@ export const DealerHeader: React.FC<DealerHeaderProps> = ({ title, showBack = fa
               onClick={() => navigate('/')}
               className="flex-shrink-0 flex items-center space-x-2 focus:outline-none"
             >
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs">
-                <Truck className="w-5 h-5" />
-              </div>
+              <img
+                src="/logo.png"
+                alt="Scrapify Dealer Patner"
+                className="w-8 h-8 rounded-lg object-contain bg-white shadow-xs border border-slate-100 p-0.5"
+              />
               <span className="font-extrabold text-emerald-700 tracking-tight text-lg hidden sm:inline">
-                Kabadidealer
+                Scrapify Dealer Patner
               </span>
             </button>
 

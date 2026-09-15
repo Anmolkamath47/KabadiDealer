@@ -42,12 +42,12 @@ export const LoginScreen: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between max-w-md mx-auto p-5 shadow-2xl">
       <div className="pt-8">
-        <div className="flex items-center space-x-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-md">
-            <Truck className="w-5 h-5" />
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 rounded-2xl bg-white p-0.5 flex items-center justify-center shadow-md overflow-hidden border border-slate-100">
+            <img src="/logo.png" alt="Scrapify Dealer Patner" className="w-full h-full object-contain rounded-xl" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Kabadidealer</h1>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Scrapify Dealer Patner</h1>
             <p className="text-xs font-semibold text-emerald-600">Partner & Driver App</p>
           </div>
         </div>

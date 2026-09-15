@@ -29,9 +29,10 @@ export const SplashScreen: React.FC = () => {
       </div>
 
       <div className="flex flex-col items-center text-center space-y-4 max-w-xs">
+        {/* Brand Logo */}
         <div className="relative">
-          <div className="w-24 h-24 rounded-3xl bg-emerald-600 flex items-center justify-center text-white shadow-2xl ring-8 ring-emerald-500/20 animate-pulse">
-            <Truck className="w-12 h-12" />
+          <div className="w-28 h-28 rounded-3xl bg-white p-1.5 flex items-center justify-center shadow-2xl ring-8 ring-emerald-500/20 overflow-hidden">
+            <img src="/logo.png" alt="Scrapify Dealer Patner" className="w-full h-full object-contain rounded-2xl" />
           </div>
           <div className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 p-1.5 rounded-full shadow">
             <Sparkles className="w-4 h-4 fill-slate-900" />
@@ -39,7 +40,7 @@ export const SplashScreen: React.FC = () => {
         </div>
 
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-white">Kabadidealer</h1>
+          <h1 className="text-2xl font-black tracking-tight text-white">Scrapify Dealer Patner</h1>
           <p className="text-xs text-emerald-400 font-bold mt-1">
             Partner App for Scrap Buyers & Collectors
           </p>
