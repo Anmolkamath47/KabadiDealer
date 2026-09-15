@@ -26,6 +26,8 @@ export interface RouteStep {
   distanceMeters: number;
   modifier?: string;
   type?: string;
+  location?: [number, number]; // [lat, lng] of maneuver junction
+  name?: string;
 }
 
 export interface DrivingRouteResult {
@@ -106,22 +108,97 @@ export class DealerLeafletMapService {
     return { map, switchLayer };
   }
 
-  // Realistic 3D Blue Navigation Arrow Marker matching turn-by-turn HUD design
+  // Google Maps Style Navigation Vehicle Puck (White Circular Halo Disc + 3D Royal Blue Arrow Pointer)
   buildNavigationArrowIcon(heading: number = 0): L.DivIcon {
     const safeHeading = heading || 0;
     return L.divIcon({
-      className: 'nav-arrow-marker-wrap',
+      className: 'nav-puck-marker-wrap',
       html: `
-        <div style="transform: rotate(${safeHeading}deg); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); width: 44px; height: 44px;" class="relative flex items-center justify-center pointer-events-none">
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));">
-            <path d="M20 4L34 34L20 27L6 34L20 4Z" fill="#1D68FF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
-            <path d="M20 7L30.5 30L20 24.5L9.5 30L20 7Z" fill="#2563EB"/>
-            <path d="M20 7L9.5 30L20 24.5V7Z" fill="#1E40AF" opacity="0.3"/>
+        <div style="width: 58px; height: 58px;" class="relative flex items-center justify-center pointer-events-none">
+          <!-- White circular base disc with Google Navigation drop shadow -->
+          <div class="absolute w-12 h-12 bg-white/95 rounded-full border border-slate-200/90 shadow-2xl flex items-center justify-center" style="box-shadow: 0 4px 14px rgba(0,0,0,0.3);"></div>
+          <!-- Rotating 3D Blue Arrow -->
+          <div style="transform: rotate(${safeHeading}deg); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); width: 34px; height: 34px;" class="relative z-10 flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 4L34 34L20 27L6 34L20 4Z" fill="#1D68FF" stroke="#FFFFFF" stroke-width="2.6" stroke-linejoin="round"/>
+              <path d="M20 7L30.5 30L20 24.5L9.5 30L20 7Z" fill="#2563EB"/>
+              <path d="M20 7L9.5 30L20 24.5V7Z" fill="#1E40AF" opacity="0.35"/>
+            </svg>
+          </div>
+        </div>
+      `,
+      iconSize: [58, 58],
+      iconAnchor: [29, 29],
+    });
+  }
+
+  // On-Road Turn Direction Callout Bubble (Deep Blue pill with pointer down to the road junction, like [ ↗ US-101 ])
+  buildRoadTurnCalloutIcon(roadName: string = 'Main Rd', modifier: string = 'right'): L.DivIcon {
+    const isLeft = modifier.toLowerCase().includes('left');
+    const isFork = modifier.toLowerCase().includes('fork') || modifier.toLowerCase().includes('slight');
+
+    const arrowSvg = isLeft
+      ? `<svg class="w-4 h-4 text-white stroke-[3.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>`
+      : isFork
+      ? `<svg class="w-4 h-4 text-white stroke-[3.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17l9.2-9.2M17 17V7H7" /></svg>`
+      : `<svg class="w-4 h-4 text-white stroke-[3.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>`;
+
+    const cleanRoad = roadName.replace(/^(onto|into|towards)\s+/i, '').trim() || 'Turn Ahead';
+
+    return L.divIcon({
+      className: 'road-turn-callout-wrap',
+      html: `
+        <div class="relative flex flex-col items-center pointer-events-none select-none" style="white-space: nowrap; transform: translate(-50%, -100%);">
+          <!-- Deep Blue Pill Callout -->
+          <div class="bg-[#002FA7] text-white px-3 py-1.5 rounded-2xl shadow-2xl flex items-center space-x-1.5 border border-blue-400/50" style="box-shadow: 0 4px 14px rgba(0, 47, 167, 0.5);">
+            ${arrowSvg}
+            <span class="font-black text-[11px] tracking-tight text-white drop-shadow-xs">${cleanRoad}</span>
+          </div>
+          <!-- Speech Pointer Triangle pointing to the road -->
+          <div class="w-0 h-0 border-x-[6px] border-x-transparent border-t-[7px] border-t-[#002FA7] -mt-[1px]"></div>
+        </div>
+      `,
+      iconSize: [110, 36],
+      iconAnchor: [55, 36],
+    });
+  }
+
+  // White Curved Maneuver Turn Arrow directly on the road polyline
+  buildRoadManeuverArrowIcon(modifier: string = 'right'): L.DivIcon {
+    const isLeft = modifier.toLowerCase().includes('left');
+    return L.divIcon({
+      className: 'road-curve-arrow-wrap',
+      html: `
+        <div class="relative flex items-center justify-center pointer-events-none" style="width: 28px; height: 28px;">
+          <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+            ${
+              isLeft
+                ? `<path d="M20 22V14C20 10.6863 17.3137 8 14 8H6M6 8L11 3M6 8L11 13" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`
+                : `<path d="M8 22V14C8 10.6863 10.6863 8 14 8H22M22 8L17 3M22 8L17 13" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`
+            }
           </svg>
         </div>
       `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22],
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+  }
+
+  // Traffic Light Indicator at road junctions (🚦)
+  buildTrafficSignalIcon(): L.DivIcon {
+    return L.divIcon({
+      className: 'road-traffic-signal-wrap',
+      html: `
+        <div class="relative flex items-center justify-center pointer-events-none" style="width: 20px; height: 24px;">
+          <div class="bg-slate-950 px-1 py-1 rounded-md border border-slate-700 shadow-md flex flex-col space-y-0.5 items-center">
+            <div class="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-xs"></div>
+            <div class="w-1.5 h-1.5 rounded-full bg-amber-400 opacity-90"></div>
+            <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 opacity-90"></div>
+          </div>
+        </div>
+      `,
+      iconSize: [20, 24],
+      iconAnchor: [10, 12],
     });
   }
 
@@ -311,6 +388,8 @@ export class DealerLeafletMapService {
           distanceMeters: Math.round(s.distance || 0),
           modifier: s.maneuver?.modifier,
           type: s.maneuver?.type,
+          location: s.maneuver?.location ? [s.maneuver.location[1], s.maneuver.location[0]] : undefined,
+          name: s.name || '',
         };
       });
 
@@ -328,7 +407,15 @@ export class DealerLeafletMapService {
         ],
         distanceKm: Math.round(directDist * 10) / 10,
         durationMins: Math.max(2, Math.round((directDist / 25) * 60)),
-        steps: [{ instruction: 'Head towards customer doorstep', distanceMeters: Math.round(directDist * 1000) }],
+        steps: [
+          {
+            instruction: 'Head towards customer doorstep',
+            distanceMeters: Math.round(directDist * 1000),
+            location: [midLat, midLng],
+            name: 'Customer Route',
+            modifier: 'right',
+          },
+        ],
       };
     }
   }
@@ -360,31 +447,112 @@ export class DealerLeafletMapService {
     return routeGroup;
   }
 
-  // Draw high-visibility turn-by-turn Navigation Route in vibrant royal blue matching the mockup
-  drawNavigationRoute(map: L.Map, pathCoordinates: [number, number][]): L.FeatureGroup {
+  // Draw high-visibility Google-style Turn-by-Turn Navigation Route with:
+  // 1. Dual-tone traffic polyline (Royal Blue + Orange Congestion Stretch)
+  // 2. Road Turn Direction Callout Bubble [ ↗ US-101 ] pinned at the upcoming turn junction
+  // 3. White curved maneuver arrow on the polyline
+  // 4. Traffic signal indicator at the intersection
+  drawNavigationRoute(
+    map: L.Map,
+    pathCoordinates: [number, number][],
+    steps?: RouteStep[]
+  ): L.FeatureGroup {
     if (!pathCoordinates || pathCoordinates.length === 0) {
       return L.featureGroup().addTo(map);
     }
 
-    // High contrast darker blue casing/border
+    const layers: L.Layer[] = [];
+
+    // 1. Dark high-contrast outer casing border
     const outerCasing = L.polyline(pathCoordinates, {
-      color: '#1E40AF',
-      weight: 8,
-      opacity: 0.35,
+      color: '#0B286E',
+      weight: 9,
+      opacity: 0.45,
       lineCap: 'round',
       lineJoin: 'round',
     });
+    layers.push(outerCasing);
 
-    // Vivid navigation blue main route line
+    // 2. Base vibrant navigation royal blue main line
     const navRouteLine = L.polyline(pathCoordinates, {
       color: '#1D68FF',
-      weight: 6,
+      weight: 6.5,
       opacity: 0.98,
       lineCap: 'round',
       lineJoin: 'round',
     });
+    layers.push(navRouteLine);
 
-    const routeGroup = L.featureGroup([outerCasing, navRouteLine]).addTo(map);
+    // 3. Dual-Tone Traffic Congestion Segment (Orange stretch on route like Google Maps Bayshore Pkwy in user image)
+    if (pathCoordinates.length >= 6) {
+      const startIndex = Math.floor(pathCoordinates.length * 0.45);
+      const endIndex = Math.min(pathCoordinates.length - 1, Math.floor(pathCoordinates.length * 0.8));
+      const trafficCoords = pathCoordinates.slice(startIndex, endIndex + 1);
+
+      if (trafficCoords.length >= 2) {
+        const trafficSegment = L.polyline(trafficCoords, {
+          color: '#FF8800',
+          weight: 6.5,
+          opacity: 0.98,
+          lineCap: 'round',
+          lineJoin: 'round',
+        });
+        layers.push(trafficSegment);
+      }
+    }
+
+    // 4. On-Road Upcoming Turn Callout Bubble & Maneuver Overlays (like [ ↗ US-101 ] in user image)
+    const turnStep =
+      steps && steps.length > 0
+        ? steps.find((s) => s.modifier && s.location) ||
+          steps.find((s) => s.location && s.name) ||
+          steps[1] ||
+          steps[0]
+        : null;
+
+    let turnPoint: [number, number] | null = null;
+    let turnName = 'Next Road';
+    let turnModifier = 'right';
+
+    if (turnStep && turnStep.location) {
+      turnPoint = turnStep.location;
+      turnName = turnStep.name || turnStep.instruction.replace(/^(turn|head)\s+/i, '').split('onto')[1] || 'Next Road';
+      turnModifier = turnStep.modifier || 'right';
+    } else if (pathCoordinates.length >= 4) {
+      const jIdx = Math.min(pathCoordinates.length - 2, Math.max(1, Math.floor(pathCoordinates.length * 0.3)));
+      turnPoint = pathCoordinates[jIdx];
+      turnName = steps?.[0]?.name || 'Turn Ahead';
+      turnModifier = steps?.[0]?.modifier || 'right';
+    }
+
+    if (turnPoint) {
+      // 4a. White curved maneuver arrow painted directly along the route line
+      const curveArrowMarker = L.marker(turnPoint, {
+        icon: this.buildRoadManeuverArrowIcon(turnModifier),
+        zIndexOffset: 500,
+      });
+      layers.push(curveArrowMarker);
+
+      // 4b. Traffic signal icon at corner
+      const trafficLightPoint: [number, number] = [
+        turnPoint[0] + 0.00008,
+        turnPoint[1] + 0.0001,
+      ];
+      const trafficLightMarker = L.marker(trafficLightPoint, {
+        icon: this.buildTrafficSignalIcon(),
+        zIndexOffset: 600,
+      });
+      layers.push(trafficLightMarker);
+
+      // 4c. Deep Blue Turn Direction Callout Bubble [ ↗ US-101 ]
+      const calloutMarker = L.marker(turnPoint, {
+        icon: this.buildRoadTurnCalloutIcon(turnName, turnModifier),
+        zIndexOffset: 1000,
+      });
+      layers.push(calloutMarker);
+    }
+
+    const routeGroup = L.featureGroup(layers).addTo(map);
     return routeGroup;
   }
 

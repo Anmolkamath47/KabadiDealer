@@ -51,6 +51,7 @@ export const DealerNavigationMap: React.FC<DealerNavigationMapProps> = ({
 
   const [tileMode, setTileMode] = useState<MapTileMode>('street');
   const [routeInfo, setRouteInfo] = useState<DrivingRouteResult | null>(null);
+  const [deviceCoords, setDeviceCoords] = useState<[number, number] | null>(null);
 
   const defaultLat = 28.6328;
   const defaultLng = 77.2167;
@@ -64,14 +65,49 @@ export const DealerNavigationMap: React.FC<DealerNavigationMapProps> = ({
       ? customerCoords[1]
       : defaultLat;
 
-  const validDealerLng =
+  // Real device GPS watcher for embedded dealer navigation
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+
+    const handlePos = (pos: GeolocationPosition) => {
+      const { longitude, latitude } = pos.coords;
+      if (
+        typeof longitude === 'number' &&
+        typeof latitude === 'number' &&
+        !isNaN(longitude) &&
+        !isNaN(latitude)
+      ) {
+        setDeviceCoords([longitude, latitude]);
+        if (onSendLivePing) {
+          onSendLivePing([longitude, latitude]);
+        }
+      }
+    };
+
+    navigator.geolocation.getCurrentPosition(handlePos, () => {}, {
+      enableHighAccuracy: true,
+      timeout: 8000,
+      maximumAge: 0,
+    });
+
+    const watchId = navigator.geolocation.watchPosition(handlePos, () => {}, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 2000,
+    });
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [onSendLivePing]);
+
+  const effectiveDealerCoords =
     dealerCoords && typeof dealerCoords[0] === 'number' && !isNaN(dealerCoords[0])
-      ? dealerCoords[0]
-      : validCustLng + 0.007;
-  const validDealerLat =
-    dealerCoords && typeof dealerCoords[1] === 'number' && !isNaN(dealerCoords[1])
-      ? dealerCoords[1]
-      : validCustLat + 0.006;
+      ? dealerCoords
+      : deviceCoords || [validCustLng + 0.007, validCustLat + 0.006];
+
+  const validDealerLng = effectiveDealerCoords[0];
+  const validDealerLat = effectiveDealerCoords[1];
 
   // Initialize Map
   useEffect(() => {
@@ -194,7 +230,7 @@ export const DealerNavigationMap: React.FC<DealerNavigationMapProps> = ({
           if (routePolylineRef.current) {
             routePolylineRef.current.remove();
           }
-          routePolylineRef.current = mapService.drawNavigationRoute(map, route.coordinates);
+          routePolylineRef.current = mapService.drawNavigationRoute(map, route.coordinates, route.steps);
         })
         .catch((err) => {
           console.warn('Navigation route sync skipped:', err);

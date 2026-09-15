@@ -55,6 +55,8 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
   const customerMarkerRef = useRef<L.Marker | null>(null);
   const routePolylineRef = useRef<L.FeatureGroup | null>(null);
   const simulationIntervalRef = useRef<any>(null);
+  const lastRouteFetchCoordsRef = useRef<[number, number] | null>(null);
+  const lastRouteFetchTimeRef = useRef<number>(0);
 
   // Phases: 'en_route' | 'near_customer' | 'arrived'
   const [phase, setPhase] = useState<NavigationPhase>(initialPhase);
@@ -63,6 +65,8 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState<boolean>(false);
   const [showSupportModal, setShowSupportModal] = useState<boolean>(false);
+  const [isRealGpsLocked, setIsRealGpsLocked] = useState<boolean>(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
   // Default Delhi NCR Coordinates for realistic fallback
   const defaultCustLng = 77.3452;
@@ -90,6 +94,79 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
 
   const [heading, setHeading] = useState<number>(38);
 
+  // Sync dealerCoords prop if supplied/updated from parent
+  useEffect(() => {
+    if (dealerCoords && typeof dealerCoords[0] === 'number' && !isNaN(dealerCoords[0])) {
+      setCurrentDealerCoords(dealerCoords);
+    }
+  }, [dealerCoords]);
+
+  // Real-time device GPS Geolocation watcher
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+
+    let hasCenteredOnGps = false;
+
+    const handleGpsUpdate = (pos: GeolocationPosition) => {
+      const { longitude, latitude, heading: geoHeading, accuracy } = pos.coords;
+      if (
+        typeof longitude === 'number' &&
+        typeof latitude === 'number' &&
+        !isNaN(longitude) &&
+        !isNaN(latitude)
+      ) {
+        setIsRealGpsLocked(true);
+        setGpsAccuracy(Math.round(accuracy || 0));
+
+        setCurrentDealerCoords((prev) => {
+          let computedHeading = heading;
+          if (geoHeading !== null && !isNaN(geoHeading) && geoHeading > 0) {
+            computedHeading = geoHeading;
+          } else if (prev && (prev[0] !== longitude || prev[1] !== latitude)) {
+            const b = mapService.calculateBearing([prev[1], prev[0]], [latitude, longitude]);
+            if (!isNaN(b) && b !== 0) {
+              computedHeading = b;
+            }
+          }
+          setHeading(computedHeading);
+          return [longitude, latitude];
+        });
+
+        if (!hasCenteredOnGps && mapInstanceRef.current && phase === 'en_route') {
+          hasCenteredOnGps = true;
+          mapService.fitBounds(mapInstanceRef.current, [
+            { lng: longitude, lat: latitude },
+            { lng: validCustLng, lat: validCustLat },
+          ]);
+        }
+
+        if (onSendLivePing) {
+          onSendLivePing([longitude, latitude]);
+        }
+      }
+    };
+
+    const handleGpsError = (err: GeolocationPositionError) => {
+      console.warn('Dealer GPS Geolocation error:', err.message);
+    };
+
+    navigator.geolocation.getCurrentPosition(handleGpsUpdate, handleGpsError, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    });
+
+    const watchId = navigator.geolocation.watchPosition(handleGpsUpdate, handleGpsError, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 1500,
+    });
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [validCustLng, validCustLat, onSendLivePing, phase]);
+
   // Society / Building name extracted for labels matching mockup
   const displayBuilding = useMemo(() => {
     if (!customerAddress) return 'Green Park Apartments';
@@ -108,6 +185,25 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
     }
     return 'Sector 21';
   }, [customerAddress]);
+
+  // Turn step helpers for HUD banner
+  const currentStep = routeData?.steps && routeData.steps.length > 0 ? routeData.steps[0] : null;
+  const nextStep = routeData?.steps && routeData.steps.length > 1 ? routeData.steps[1] : null;
+
+  const currentManeuverDistanceText = useMemo(() => {
+    if (!currentStep) return phase === 'en_route' ? '200 m' : '50 m';
+    if (currentStep.distanceMeters < 1000) {
+      return `${Math.round(currentStep.distanceMeters)} m`;
+    }
+    return `${(currentStep.distanceMeters / 1000).toFixed(1)} km`;
+  }, [currentStep, phase]);
+
+  const currentRoadTitle = useMemo(() => {
+    if (currentStep?.name && currentStep.name.trim()) {
+      return currentStep.name;
+    }
+    return phase === 'en_route' ? displayArea : displayBuilding;
+  }, [currentStep, displayArea, displayBuilding, phase]);
 
   // Voice Speech Synthesis Helper
   const speakInstruction = (text: string) => {
@@ -195,28 +291,47 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
       lat: validCustLat,
     };
 
-    mapService
-      .fetchDrivingRoute(dealerPoint, custPoint)
-      .then((route) => {
-        setRouteData(route);
-        if (routePolylineRef.current) {
-          routePolylineRef.current.remove();
-        }
-        routePolylineRef.current = mapService.drawNavigationRoute(map, route.coordinates);
+    const now = Date.now();
+    const lastCoords = lastRouteFetchCoordsRef.current;
+    const distSinceLast = lastCoords
+      ? mapService.calculateDirectDistance(
+          { lng: lastCoords[0], lat: lastCoords[1] },
+          dealerPoint
+        )
+      : 999;
+    const timeSinceLast = now - lastRouteFetchTimeRef.current;
 
-        // Frame camera based on phase
-        if (phase === 'en_route') {
-          mapService.fitBounds(map, [dealerPoint, custPoint]);
-        } else if (phase === 'near_customer') {
-          map.setView([dealerPoint.lat, dealerPoint.lng], 17, { animate: true });
-        } else {
-          map.setView([custPoint.lat, custPoint.lng], 18, { animate: true });
-        }
-      })
-      .catch((err) => {
-        console.warn('Navigation route error:', err);
-      });
-  }, [validCustLng, validCustLat]);
+    // Fetch on initial load or if moved > 25 meters or after 25 seconds
+    const shouldFetch = !routeData || distSinceLast > 0.025 || (timeSinceLast > 25000 && distSinceLast > 0.005);
+
+    if (shouldFetch) {
+      lastRouteFetchCoordsRef.current = [currentDealerCoords[0], currentDealerCoords[1]];
+      lastRouteFetchTimeRef.current = now;
+
+      mapService
+        .fetchDrivingRoute(dealerPoint, custPoint)
+        .then((route) => {
+          setRouteData(route);
+          if (routePolylineRef.current) {
+            routePolylineRef.current.remove();
+          }
+          // Pass route.steps so the on-road turn callout bubble [ ↗ Road Name ], curve arrow, & traffic light are drawn
+          routePolylineRef.current = mapService.drawNavigationRoute(map, route.coordinates, route.steps);
+
+          // Frame camera based on phase
+          if (phase === 'en_route') {
+            mapService.fitBounds(map, [dealerPoint, custPoint]);
+          } else if (phase === 'near_customer') {
+            map.setView([dealerPoint.lat, dealerPoint.lng], 17, { animate: true });
+          } else {
+            map.setView([custPoint.lat, custPoint.lng], 18, { animate: true });
+          }
+        })
+        .catch((err) => {
+          console.warn('Navigation route error:', err);
+        });
+    }
+  }, [currentDealerCoords, validCustLng, validCustLat, phase, routeData]);
 
   // 3. Update dealer marker position, heading, and icon based on Phase
   useEffect(() => {
@@ -352,6 +467,30 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
     if (!mapInstanceRef.current) return;
     if (phase === 'arrived') {
       mapInstanceRef.current.setView([validCustLat, validCustLng], 18, { animate: true });
+      return;
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { longitude, latitude } = pos.coords;
+          setCurrentDealerCoords([longitude, latitude]);
+          setIsRealGpsLocked(true);
+          mapInstanceRef.current?.setView(
+            [latitude, longitude],
+            phase === 'near_customer' ? 17 : 16,
+            { animate: true }
+          );
+        },
+        () => {
+          mapInstanceRef.current?.setView(
+            [currentDealerCoords[1], currentDealerCoords[0]],
+            phase === 'near_customer' ? 17 : 16,
+            { animate: true }
+          );
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
     } else {
       mapInstanceRef.current.setView(
         [currentDealerCoords[1], currentDealerCoords[0]],
@@ -425,13 +564,25 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
             <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
           </button>
 
-          {/* Centered Dynamic Title matching mockups */}
-          <div className="px-5 py-1.5 bg-white/95 backdrop-blur-md rounded-full shadow-md border border-slate-200/80">
-            <h1 className="text-sm font-black text-slate-900 tracking-tight">
-              {phase === 'en_route' && 'En Route'}
-              {phase === 'near_customer' && 'Near Customer Location'}
-              {phase === 'arrived' && 'Arrived'}
-            </h1>
+          {/* Centered Dynamic Title + Live GPS Status Indicator */}
+          <div className="flex flex-col items-center">
+            <div className="px-5 py-1.5 bg-white/95 backdrop-blur-md rounded-full shadow-md border border-slate-200/80 flex items-center space-x-2">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isRealGpsLocked ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                }`}
+              />
+              <h1 className="text-sm font-black text-slate-900 tracking-tight">
+                {phase === 'en_route' && 'En Route'}
+                {phase === 'near_customer' && 'Near Customer Location'}
+                {phase === 'arrived' && 'Arrived'}
+              </h1>
+            </div>
+            {isRealGpsLocked && (
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full mt-1 shadow-2xs border border-emerald-300/60">
+                📍 Live GPS {gpsAccuracy ? `(±${gpsAccuracy}m)` : ''}
+              </span>
+            )}
           </div>
 
           {/* Right Action Button: Headset for En Route & Near Customer, 3-dots for Arrived */}
@@ -490,22 +641,45 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
           <div className="pointer-events-auto bg-[#046A38] text-white rounded-2xl p-4 shadow-xl border border-emerald-700/60 transition-all duration-300">
             {phase === 'en_route' ? (
               <div className="flex items-start space-x-3.5">
-                {/* Left: White Straight Arrow & Distance */}
+                {/* Left: Dynamic Maneuver Direction Arrow & Distance */}
                 <div className="flex flex-col items-center justify-center min-w-[56px] text-center pt-0.5">
-                  <ArrowUp className="w-9 h-9 stroke-[3] text-white animate-pulse" />
-                  <span className="text-xs font-black tracking-tight mt-1 text-white">200 m</span>
+                  {currentStep?.modifier?.includes('left') ? (
+                    <CornerUpLeft className="w-9 h-9 stroke-[3] text-white animate-pulse" />
+                  ) : currentStep?.modifier?.includes('right') ? (
+                    <CornerUpRight className="w-9 h-9 stroke-[3] text-white animate-pulse" />
+                  ) : (
+                    <ArrowUp className="w-9 h-9 stroke-[3] text-white animate-pulse" />
+                  )}
+                  <span className="text-xs font-black tracking-tight mt-1 text-white">
+                    {currentManeuverDistanceText}
+                  </span>
                 </div>
 
-                {/* Right: Head towards Sector 21, Then turn right */}
+                {/* Right: Head towards road, Then turn direction */}
                 <div className="flex-1 min-w-0 pr-1">
-                  <div className="text-xs font-semibold text-emerald-100 tracking-tight">Head towards</div>
+                  <div className="text-xs font-semibold text-emerald-100 tracking-tight">
+                    {currentStep?.modifier?.includes('left')
+                      ? 'Turn left towards'
+                      : currentStep?.modifier?.includes('right')
+                      ? 'Turn right towards'
+                      : 'Head towards'}
+                  </div>
                   <div className="text-lg font-black text-white truncate leading-tight mt-0.5">
-                    {displayArea}
+                    {currentRoadTitle}
                   </div>
-                  <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-200 mt-2">
-                    <CornerUpRight className="w-4 h-4 stroke-[3] text-emerald-300 flex-shrink-0" />
-                    <span>Then turn right</span>
-                  </div>
+                  {nextStep && (
+                    <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-200 mt-2">
+                      {nextStep.modifier?.includes('left') ? (
+                        <CornerUpLeft className="w-4 h-4 stroke-[3] text-emerald-300 flex-shrink-0" />
+                      ) : (
+                        <CornerUpRight className="w-4 h-4 stroke-[3] text-emerald-300 flex-shrink-0" />
+                      )}
+                      <span className="truncate">
+                        Then {nextStep.modifier?.includes('left') ? 'turn left' : 'turn right'}
+                        {nextStep.name ? ` on ${nextStep.name}` : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -513,7 +687,9 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
                 {/* Left: Left Turn Arrow & Distance (50m) */}
                 <div className="flex flex-col items-center justify-center min-w-[56px] text-center pt-0.5">
                   <CornerUpLeft className="w-9 h-9 stroke-[3] text-white animate-pulse" />
-                  <span className="text-xs font-black tracking-tight mt-1 text-white">50 m</span>
+                  <span className="text-xs font-black tracking-tight mt-1 text-white">
+                    {currentManeuverDistanceText}
+                  </span>
                 </div>
 
                 {/* Right: Turn left into Green Park Apartments */}
@@ -638,10 +814,16 @@ export const DealerNavigationExperience: React.FC<DealerNavigationExperienceProp
           <div className="bg-white/98 backdrop-blur-md rounded-3xl p-4 shadow-2xl border border-slate-200/80 flex items-center justify-between">
             <div className="flex flex-col">
               <div className="text-2xl font-black text-[#046A38] tracking-tight">
-                {phase === 'en_route' ? '8 min' : '1 min'}
+                {routeData?.durationMins
+                  ? `${Math.max(1, Math.round(routeData.durationMins))} min`
+                  : phase === 'en_route'
+                  ? '8 min'
+                  : '1 min'}
               </div>
               <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                {phase === 'en_route'
+                {routeData
+                  ? `${routeData.distanceKm.toFixed(1)} km • ${getEtaTime(routeData.durationMins)}`
+                  : phase === 'en_route'
                   ? `2.4 km • ${getEtaTime(8)}`
                   : `300 m • ${getEtaTime(1)}`}
               </div>

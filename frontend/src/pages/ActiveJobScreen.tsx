@@ -44,6 +44,12 @@ export const ActiveJobScreen: React.FC = () => {
     return activeOrder?.status === 'DEALER_EN_ROUTE';
   });
 
+  useEffect(() => {
+    if (activeOrder?.status === 'DEALER_EN_ROUTE') {
+      setIsLiveNavigationOpen(true);
+    }
+  }, [activeOrder?.status]);
+
   const [enteredOtp, setEnteredOtp] = useState(['', '', '', '']);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
