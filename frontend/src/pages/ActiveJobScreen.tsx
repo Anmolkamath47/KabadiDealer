@@ -392,6 +392,14 @@ export const ActiveJobScreen: React.FC = () => {
                   <Check className="w-4 h-4" />
                   <span>{isVerifyingOtp ? 'Verifying OTP...' : 'VERIFY OTP & START WEIGHING'}</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLiveNavigationOpen(true)}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 transition"
+                >
+                  <Navigation className="w-3.5 h-3.5 fill-slate-700 text-slate-700" />
+                  <span>View Live Navigation Map</span>
+                </button>
               </form>
             </div>
           </div>
