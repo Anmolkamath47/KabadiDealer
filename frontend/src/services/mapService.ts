@@ -108,32 +108,27 @@ export class DealerLeafletMapService {
     return { map, switchLayer };
   }
 
-  // Google Maps Style Navigation Vehicle Puck matching Image 2 (Trailing Gray Road + Circular White Halo Disc + 3D Royal Blue Arrow)
+  // Google Maps Style Navigation Vehicle Puck (White Circular Halo Disc + 3D Royal Blue Arrow Pointer)
   buildNavigationArrowIcon(heading: number = 0): L.DivIcon {
     const safeHeading = heading || 0;
     return L.divIcon({
       className: 'nav-puck-marker-wrap',
       html: `
-        <div style="width: 60px; height: 60px;" class="relative flex items-center justify-center pointer-events-none">
-          <div style="transform: rotate(${safeHeading}deg); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); width: 44px; height: 44px;" class="relative flex items-center justify-center">
-            <!-- Trailing gray road line behind vehicle (as seen in Google Maps navigation) -->
-            <div style="position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); width: 8.5px; height: 26px; background: #556070; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 1;"></div>
-            
-            <!-- White circular base disc with authentic Google drop shadow -->
-            <div style="position: absolute; width: 42px; height: 42px; background: #FFFFFF; border-radius: 9999px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.95); z-index: 2;"></div>
-            
-            <!-- 3D Google Navigation Royal Blue Arrow -->
-            <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="position: relative; z-index: 3; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
-              <!-- Left side (bright blue) -->
-              <path d="M20 4L6 34L20 27V4Z" fill="#1D68FF" stroke="#FFFFFF" stroke-width="2.2" stroke-linejoin="round"/>
-              <!-- Right side (darker 3D shade) -->
-              <path d="M20 4L34 34L20 27V4Z" fill="#1557B0" stroke="#FFFFFF" stroke-width="2.2" stroke-linejoin="round"/>
+        <div style="width: 58px; height: 58px;" class="relative flex items-center justify-center pointer-events-none">
+          <!-- White circular base disc with Google Navigation drop shadow -->
+          <div class="absolute w-12 h-12 bg-white/95 rounded-full border border-slate-200/90 shadow-2xl flex items-center justify-center" style="box-shadow: 0 4px 14px rgba(0,0,0,0.3);"></div>
+          <!-- Rotating 3D Blue Arrow -->
+          <div style="transform: rotate(${safeHeading}deg); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); width: 34px; height: 34px;" class="relative z-10 flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 4L34 34L20 27L6 34L20 4Z" fill="#1D68FF" stroke="#FFFFFF" stroke-width="2.6" stroke-linejoin="round"/>
+              <path d="M20 7L30.5 30L20 24.5L9.5 30L20 7Z" fill="#2563EB"/>
+              <path d="M20 7L9.5 30L20 24.5V7Z" fill="#1E40AF" opacity="0.35"/>
             </svg>
           </div>
         </div>
       `,
-      iconSize: [60, 60],
-      iconAnchor: [30, 30],
+      iconSize: [58, 58],
+      iconAnchor: [29, 29],
     });
   }
 
@@ -272,27 +267,77 @@ export class DealerLeafletMapService {
   }
 
   buildDealerVehicleIcon(
-    _vehicleType?: string,
+    vehicleType?: string,
     heading: number = 0,
-    _speed: number = 24
+    speed: number = 24
   ): L.DivIcon {
-    return this.buildNavigationArrowIcon(heading);
+    const safeHeading = heading || 0;
+    const vehicle = getVehicleDetails(vehicleType);
+
+    return L.divIcon({
+      className: 'custom-vehicle-pin-wrap',
+      html: `
+        <div class="relative flex flex-col items-center justify-center">
+          <!-- Live Vehicle Speed Tag Pill -->
+          <div class="mb-1 bg-slate-900/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-slate-700 flex items-center space-x-1 whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>${speed} km/h</span>
+          </div>
+
+          <!-- Vehicle Icon Container with Pointer Indicator -->
+          <div class="relative flex items-center justify-center">
+            <!-- Rotating Directional Bearing Pointer Arrow -->
+            <div style="transform: rotate(${safeHeading}deg); transition: transform 0.3s ease; position: absolute; top: -6px; z-index: 10;" class="flex items-center justify-center pointer-events-none">
+              <div class="w-3 h-3 bg-emerald-400 border border-white rotate-45 rounded-xs shadow-md"></div>
+            </div>
+
+            <!-- Vehicle Icon Box with Gradient & Ring -->
+            <div class="relative w-12 h-12 bg-gradient-to-tr ${vehicle.bgGradient} rounded-2xl border-2 border-white shadow-2xl flex items-center justify-center text-white ring-4 ${vehicle.ringColor}">
+              <div class="flex items-center justify-center">
+                ${vehicle.svgHtml}
+              </div>
+            </div>
+          </div>
+
+          <!-- Badge for Vehicle Category -->
+          <div class="mt-1 bg-slate-950/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-md border border-slate-700 whitespace-nowrap flex items-center space-x-1">
+            <span>${vehicle.badge}</span>
+          </div>
+        </div>
+      `,
+      iconSize: [68, 80],
+      iconAnchor: [34, 52],
+      popupAnchor: [0, -52],
+    });
   }
 
   createDealerVehicleMarker(
     map: L.Map,
     coords?: MapCoordinates,
-    _title: string = 'Your Vehicle',
+    title: string = 'Your Vehicle',
     heading: number = 45,
-    _speed: number = 28,
-    _vehicleType?: string
+    speed: number = 28,
+    vehicleType?: string
   ): L.Marker {
     const validCoords = sanitizeCoords(coords);
-    const vehicleIcon = this.buildNavigationArrowIcon(heading);
-    const marker = L.marker([validCoords.lat, validCoords.lng], {
-      icon: vehicleIcon,
-      zIndexOffset: 1200,
-    }).addTo(map);
+    const vehicleIcon = this.buildDealerVehicleIcon(vehicleType, heading, speed);
+    const vehicle = getVehicleDetails(vehicleType);
+
+    const marker = L.marker([validCoords.lat, validCoords.lng], { icon: vehicleIcon }).addTo(map);
+    marker.bindPopup(`
+      <div style="font-family: system-ui, sans-serif; padding: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 16px;">${vehicle.emoji}</span>
+          <strong style="color: #0f172a; font-size: 13px;">${title}</strong>
+        </div>
+        <div style="font-size: 11px; font-weight: 700; color: #059669; margin-top: 2px;">
+          ${vehicle.badge}
+        </div>
+        <div style="font-size: 10px; color: #64748b; margin-top: 1px;">
+          Live GPS tracking active
+        </div>
+      </div>
+    `);
     return marker;
   }
 
@@ -300,60 +345,13 @@ export class DealerLeafletMapService {
     marker: L.Marker,
     coords: MapCoordinates,
     heading: number = 0,
-    _speed: number = 24,
-    _vehicleType?: string
+    speed: number = 24,
+    vehicleType?: string
   ): void {
     const valid = sanitizeCoords(coords);
     marker.setLatLng([valid.lat, valid.lng]);
-    const updatedIcon = this.buildNavigationArrowIcon(heading);
+    const updatedIcon = this.buildDealerVehicleIcon(vehicleType, heading, speed);
     marker.setIcon(updatedIcon);
-  }
-
-  // Authentic Google Maps Blue Arrow Navigation Puck
-  createNavigationPuckMarker(
-    map: L.Map,
-    coords: MapCoordinates,
-    heading: number = 0
-  ): L.Marker {
-    const validCoords = sanitizeCoords(coords);
-    const icon = this.buildNavigationArrowIcon(heading);
-    const marker = L.marker([validCoords.lat, validCoords.lng], {
-      icon,
-      zIndexOffset: 1200,
-    }).addTo(map);
-    return marker;
-  }
-
-  updateNavigationPuckMarker(
-    marker: L.Marker,
-    coords: MapCoordinates,
-    heading: number = 0
-  ): void {
-    const validCoords = sanitizeCoords(coords);
-    marker.setLatLng([validCoords.lat, validCoords.lng]);
-    marker.setIcon(this.buildNavigationArrowIcon(heading));
-  }
-
-  // Deep Link for launching Native Google Maps Navigation
-  getGoogleMapsNavUrl(lat: number, lng: number, address?: string): string {
-    const encodedAddress = address ? encodeURIComponent(address) : `${lat},${lng}`;
-    return `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&destination_place_id=&travelmode=driving&dir_action=navigate`;
-  }
-
-  // Voice navigation assistant via Web SpeechSynthesis API
-  speakVoiceGuidance(text: string): void {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.lang = 'en-IN';
-        window.speechSynthesis.speak(utterance);
-      } catch (e) {
-        console.warn('Speech synthesis unavailable:', e);
-      }
-    }
   }
 
   // Fetch actual driving road polyline and turn steps using free OSRM Routing Engine
@@ -465,28 +463,11 @@ export class DealerLeafletMapService {
 
     const layers: L.Layer[] = [];
 
-    // 0. Trailing gray road line behind vehicle puck (road already traveled as seen in Google Maps)
-    if (pathCoordinates.length >= 2) {
-      const p0 = pathCoordinates[0];
-      const p1 = pathCoordinates[1];
-      const dLat = p0[0] - p1[0];
-      const dLng = p0[1] - p1[1];
-      const tailPoint: [number, number] = [p0[0] + dLat * 0.5, p0[1] + dLng * 0.5];
-      const grayTail = L.polyline([tailPoint, p0], {
-        color: '#556070',
-        weight: 8,
-        opacity: 0.9,
-        lineCap: 'round',
-        lineJoin: 'round',
-      });
-      layers.push(grayTail);
-    }
-
     // 1. Dark high-contrast outer casing border
     const outerCasing = L.polyline(pathCoordinates, {
-      color: '#072464',
-      weight: 11,
-      opacity: 0.95,
+      color: '#0B286E',
+      weight: 9,
+      opacity: 0.45,
       lineCap: 'round',
       lineJoin: 'round',
     });
@@ -495,33 +476,24 @@ export class DealerLeafletMapService {
     // 2. Base vibrant navigation royal blue main line
     const navRouteLine = L.polyline(pathCoordinates, {
       color: '#1D68FF',
-      weight: 7,
-      opacity: 1.0,
+      weight: 6.5,
+      opacity: 0.98,
       lineCap: 'round',
       lineJoin: 'round',
     });
     layers.push(navRouteLine);
 
-    // 3. Dual-Tone Traffic Congestion Segment (Orange stretch on route like Bayshore Pkwy in Image 2)
-    if (pathCoordinates.length >= 4) {
-      const startIndex = Math.floor(pathCoordinates.length * 0.4);
-      const endIndex = Math.min(pathCoordinates.length - 1, Math.floor(pathCoordinates.length * 0.78));
+    // 3. Dual-Tone Traffic Congestion Segment (Orange stretch on route like Google Maps Bayshore Pkwy in user image)
+    if (pathCoordinates.length >= 6) {
+      const startIndex = Math.floor(pathCoordinates.length * 0.45);
+      const endIndex = Math.min(pathCoordinates.length - 1, Math.floor(pathCoordinates.length * 0.8));
       const trafficCoords = pathCoordinates.slice(startIndex, endIndex + 1);
 
       if (trafficCoords.length >= 2) {
-        const trafficCasing = L.polyline(trafficCoords, {
-          color: '#9A3412',
-          weight: 11,
-          opacity: 0.95,
-          lineCap: 'round',
-          lineJoin: 'round',
-        });
-        layers.push(trafficCasing);
-
         const trafficSegment = L.polyline(trafficCoords, {
           color: '#FF8800',
-          weight: 7,
-          opacity: 1.0,
+          weight: 6.5,
+          opacity: 0.98,
           lineCap: 'round',
           lineJoin: 'round',
         });
@@ -529,7 +501,7 @@ export class DealerLeafletMapService {
       }
     }
 
-    // 4. On-Road Upcoming Turn Callout Bubble & Maneuver Overlays (like [ ↗ US-101 ] in Image 2)
+    // 4. On-Road Upcoming Turn Callout Bubble & Maneuver Overlays (like [ ↗ US-101 ] in user image)
     const turnStep =
       steps && steps.length > 0
         ? steps.find((s) => s.modifier && s.location) ||
@@ -546,8 +518,8 @@ export class DealerLeafletMapService {
       turnPoint = turnStep.location;
       turnName = turnStep.name || turnStep.instruction.replace(/^(turn|head)\s+/i, '').split('onto')[1] || 'Next Road';
       turnModifier = turnStep.modifier || 'right';
-    } else if (pathCoordinates.length >= 3) {
-      const jIdx = Math.min(pathCoordinates.length - 2, Math.max(1, Math.floor(pathCoordinates.length * 0.35)));
+    } else if (pathCoordinates.length >= 4) {
+      const jIdx = Math.min(pathCoordinates.length - 2, Math.max(1, Math.floor(pathCoordinates.length * 0.3)));
       turnPoint = pathCoordinates[jIdx];
       turnName = steps?.[0]?.name || 'Turn Ahead';
       turnModifier = steps?.[0]?.modifier || 'right';
@@ -557,7 +529,7 @@ export class DealerLeafletMapService {
       // 4a. White curved maneuver arrow painted directly along the route line
       const curveArrowMarker = L.marker(turnPoint, {
         icon: this.buildRoadManeuverArrowIcon(turnModifier),
-        zIndexOffset: 600,
+        zIndexOffset: 500,
       });
       layers.push(curveArrowMarker);
 
@@ -568,14 +540,14 @@ export class DealerLeafletMapService {
       ];
       const trafficLightMarker = L.marker(trafficLightPoint, {
         icon: this.buildTrafficSignalIcon(),
-        zIndexOffset: 700,
+        zIndexOffset: 600,
       });
       layers.push(trafficLightMarker);
 
       // 4c. Deep Blue Turn Direction Callout Bubble [ ↗ US-101 ]
       const calloutMarker = L.marker(turnPoint, {
         icon: this.buildRoadTurnCalloutIcon(turnName, turnModifier),
-        zIndexOffset: 1100,
+        zIndexOffset: 1000,
       });
       layers.push(calloutMarker);
     }

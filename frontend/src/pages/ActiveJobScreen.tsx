@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDealerOrder } from '../context/DealerOrderContext';
 import { useDealerAuth } from '../context/DealerAuthContext';
+import { DealerLiveMap } from '../components/map/DealerLiveMap';
 import { mapService } from '../services/mapService';
-import { DealerNavigationMap } from '../components/map/DealerNavigationMap';
 import { DigitalWeighingModal } from '../components/order/DigitalWeighingModal';
 import { Toast } from '../components/common/Toast';
 import { SelectedMaterialItem } from '../types';
@@ -183,22 +183,18 @@ export const ActiveJobScreen: React.FC = () => {
       </div>
 
       <div className="p-4 space-y-4 overflow-y-auto flex-1">
-        {/* ================= STAGE 1: ACCEPTED & STAGE 2: DEALER_EN_ROUTE (Google Maps Turn-by-Turn Navigation) ================= */}
+        {/* ================= STAGE 1: ACCEPTED & STAGE 2: DEALER_EN_ROUTE (Interactive Live Navigation Map) ================= */}
         {['ACCEPTED', 'DEALER_EN_ROUTE'].includes(activeOrder.status) && (
           <div className="space-y-4">
-            {/* Google Maps Turn-by-Turn Navigation Map */}
-            <DealerNavigationMap
+            {/* Live Navigation Map */}
+            <DealerLiveMap
               customerCoords={activeOrder.pickupLocation.coordinates}
               customerAddress={activeOrder.pickupAddress}
-              customerName={activeOrder.customerName || 'Customer'}
-              customerPhone={activeOrder.customerPhone}
               dealerCoords={
                 activeOrder.dealerLiveLocation?.coordinates || dealer?.location?.coordinates
               }
               vehicleType={dealer?.vehicleType || 'Electric Scrap Loader'}
               onSendLivePing={(coords: [number, number]) => sendLiveLocation(coords, 45, 25)}
-              onArrived={activeOrder.status === 'DEALER_EN_ROUTE' ? handleMarkArrived : undefined}
-              isEnRoute={activeOrder.status === 'DEALER_EN_ROUTE'}
             />
 
             {/* Action buttons depending on state */}
@@ -220,7 +216,7 @@ export const ActiveJobScreen: React.FC = () => {
                 <button
                   onClick={handleStartTrip}
                   disabled={isLoading}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-md active:scale-98"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-md"
                 >
                   <Truck className="w-5 h-5" />
                   <span>START TRIP / NAVIGATION (EN ROUTE)</span>
@@ -230,7 +226,7 @@ export const ActiveJobScreen: React.FC = () => {
               <button
                 onClick={handleMarkArrived}
                 disabled={isLoading}
-                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-4 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-lg active:scale-98"
+                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-4 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 transition shadow-lg"
               >
                 <MapPin className="w-5 h-5" />
                 <span>I HAVE ARRIVED AT DOORSTEP</span>
