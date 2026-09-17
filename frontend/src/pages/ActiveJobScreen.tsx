@@ -246,7 +246,7 @@ export const ActiveJobScreen: React.FC = () => {
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">Enter Customer Pickup OTP</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Ask customer for the 4-digit code displayed on their Scrapify app screen.
+                  Ask customer for the 4-digit code displayed on their Scrapwala app screen.
                 </p>
               </div>
 

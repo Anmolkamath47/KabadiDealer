@@ -40,6 +40,7 @@ class CrossOriginSyncService {
     if (envConsumerUrl) origins.add(envConsumerUrl.replace(/\/$/, ''));
 
     if (typeof window === 'undefined') {
+      origins.add('https://scrapwala.vercel.app');
       origins.add('https://kabadiwala-iota.vercel.app');
       return Array.from(origins);
     }
@@ -59,6 +60,7 @@ class CrossOriginSyncService {
     if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host)) {
       origins.add(`http://${host}:5173`);
     }
+    origins.add('https://scrapwala.vercel.app');
     origins.add('https://kabadiwala-iota.vercel.app');
 
     return Array.from(origins);

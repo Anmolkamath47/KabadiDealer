@@ -33,7 +33,7 @@ export const DealerHeader: React.FC<DealerHeaderProps> = ({ title, showBack = fa
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-base font-bold text-slate-900 line-clamp-1">{title || 'Scrapify Dealer Partner'}</h1>
+            <h1 className="text-base font-bold text-slate-900 line-clamp-1">{title || 'Scrapwala Dealer Partner'}</h1>
           </div>
         ) : (
           <div className="flex items-center space-x-3 flex-1 min-w-0 pr-2">
@@ -43,11 +43,11 @@ export const DealerHeader: React.FC<DealerHeaderProps> = ({ title, showBack = fa
             >
               <img
                 src="/logo.png"
-                alt="Scrapify Dealer Partner"
+                alt="Scrapwala Dealer Partner"
                 className="w-8 h-8 rounded-lg object-contain bg-white shadow-xs border border-slate-100 p-0.5"
               />
               <span className="font-extrabold text-emerald-700 tracking-tight text-lg hidden sm:inline">
-                Scrapify Dealer Partner
+                Scrapwala Dealer Partner
               </span>
             </button>
 

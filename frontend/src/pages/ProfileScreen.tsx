@@ -448,10 +448,10 @@ export const ProfileScreen: React.FC = () => {
         {/* App Version Info */}
         <div className="text-center py-2">
           <p className="text-[11px] text-slate-400">
-            Scrapify Dealer Partner App • v1.0.0 (Production Build)
+            Scrapwala Dealer Partner App • v1.0.0 (Production Build)
           </p>
           <p className="text-[10px] text-slate-400 mt-0.5">
-            Secured end-to-end with Scrapify Real-time Dispatch Network
+            Secured end-to-end with Scrapwala Real-time Dispatch Network
           </p>
         </div>
       </main>

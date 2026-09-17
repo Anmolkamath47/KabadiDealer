@@ -29,7 +29,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowIncompleteProfi
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold text-slate-500">Loading Scrapify Dealer Partner App...</p>
+          <p className="text-sm font-semibold text-slate-500">Loading Scrapwala Dealer Partner App...</p>
         </div>
       </div>
     );

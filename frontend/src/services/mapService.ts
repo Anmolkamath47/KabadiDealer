@@ -597,7 +597,7 @@ export class DealerLeafletMapService {
       const res = await fetch(url, {
         headers: {
           'Accept-Language': 'en',
-          'User-Agent': 'Kabadidealer-Partner-App/1.0',
+          'User-Agent': 'Scrapwala-Dealer-Partner-App/1.0',
         },
       });
       if (!res.ok) throw new Error('Geocoding service unavailable');
@@ -628,7 +628,7 @@ export class DealerLeafletMapService {
       const res = await fetch(url, {
         headers: {
           'Accept-Language': 'en',
-          'User-Agent': 'Kabadidealer-Partner-App/1.0',
+          'User-Agent': 'Scrapwala-Dealer-Partner-App/1.0',
         },
       });
       if (!res.ok) return [];
