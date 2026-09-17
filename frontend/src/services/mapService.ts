@@ -277,37 +277,22 @@ export class DealerLeafletMapService {
     return L.divIcon({
       className: 'custom-vehicle-pin-wrap',
       html: `
-        <div class="relative flex flex-col items-center justify-center">
+        <div class="dealer-live-vehicle-marker relative flex flex-col items-center justify-center select-none" style="pointer-events: auto; width: 64px; height: 90px;">
           <!-- Live Vehicle Speed Tag Pill -->
-          <div class="mb-1 bg-slate-900/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-slate-700 flex items-center space-x-1 whitespace-nowrap">
+          <div class="mb-1 bg-slate-900/95 backdrop-blur-xs text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg border border-slate-700 flex items-center space-x-1 whitespace-nowrap z-20">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>${speed} km/h</span>
           </div>
 
-          <!-- Vehicle Icon Container with Pointer Indicator -->
-          <div class="relative flex items-center justify-center">
-            <!-- Rotating Directional Bearing Pointer Arrow -->
-            <div style="transform: rotate(${safeHeading}deg); transition: transform 0.3s ease; position: absolute; top: -6px; z-index: 10;" class="flex items-center justify-center pointer-events-none">
-              <div class="w-3 h-3 bg-emerald-400 border border-white rotate-45 rounded-xs shadow-md"></div>
-            </div>
-
-            <!-- Vehicle Icon Box with Gradient & Ring -->
-            <div class="relative w-12 h-12 bg-gradient-to-tr ${vehicle.bgGradient} rounded-2xl border-2 border-white shadow-2xl flex items-center justify-center text-white ring-4 ${vehicle.ringColor}">
-              <div class="flex items-center justify-center">
-                ${vehicle.svgHtml}
-              </div>
-            </div>
-          </div>
-
-          <!-- Badge for Vehicle Category -->
-          <div class="mt-1 bg-slate-950/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-md border border-slate-700 whitespace-nowrap flex items-center space-x-1">
-            <span>${vehicle.badge}</span>
+          <!-- Rotating Photorealistic Top-Down Vehicle Model (Oriented along road heading) -->
+          <div class="dealer-vehicle-rotating-wrap relative flex items-center justify-center pointer-events-none" style="transform: rotate(${safeHeading}deg); transform-origin: center center; transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1); filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4));">
+            ${vehicle.topDownSvgHtml || vehicle.svgHtml}
           </div>
         </div>
       `,
-      iconSize: [68, 80],
-      iconAnchor: [34, 52],
-      popupAnchor: [0, -52],
+      iconSize: [64, 90],
+      iconAnchor: [32, 45],
+      popupAnchor: [0, -45],
     });
   }
 
