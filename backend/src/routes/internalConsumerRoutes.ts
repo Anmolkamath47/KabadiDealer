@@ -29,5 +29,15 @@ router.post(
   InternalConsumerController.handleRatingSubmission
 );
 
+router.post(
+  '/cancel',
+  InternalConsumerController.handleOrderCancelled
+);
+
+router.post(
+  '/chat',
+  InternalConsumerController.handleConsumerChatMessage
+);
+
 export default router;
 

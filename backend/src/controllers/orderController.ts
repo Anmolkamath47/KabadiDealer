@@ -2,6 +2,9 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { OrderEngineService } from '../services/orderEngineService.js';
 import { AuthenticatedDealerRequest } from '../middleware/authMiddleware.js';
+import { DealerOrder } from '../models/DealerOrder.js';
+import { dealerSocketEvents } from '../sockets/socketManager.js';
+import { KabadiwalaClient } from '../services/kabadiwalaClient.js';
 
 export const RejectOrderSchema = z.object({
   reason: z.string().optional(),
@@ -315,6 +318,83 @@ export class OrderController {
         success: false,
         message: error.message || 'Failed to update order status',
       });
+    }
+  }
+
+  static async getOrderChat(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    _next: NextFunction
+  ): Promise<void> {
+    try {
+      const orderId = req.params.orderId as string;
+      const order = await DealerOrder.findOne({ orderId }).select('chatMessages customerName').lean();
+      const messages = (order?.chatMessages || []).map((m: any) => ({
+        ...m,
+        orderId,
+        formattedTime: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }));
+      res.status(200).json({ success: true, data: messages });
+    } catch (err: any) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  }
+
+  static async postDealerChat(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    _next: NextFunction
+  ): Promise<void> {
+    try {
+      const orderId = req.params.orderId as string;
+      const { text, senderName } = req.body;
+      if (!text || !text.trim()) {
+        res.status(400).json({ success: false, message: 'Message text is required' });
+        return;
+      }
+
+      const order = await DealerOrder.findOne({ orderId });
+      if (!order) {
+        res.status(404).json({ success: false, message: 'Order not found' });
+        return;
+      }
+
+      const dealerName = senderName || req.dealer?.contactPerson || req.dealer?.businessName || 'Dealer Partner';
+      const msgObj = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        sender: 'dealer' as const,
+        senderName: dealerName,
+        text: text.trim(),
+        timestamp: new Date(),
+      };
+
+      if (!order.chatMessages) {
+        order.chatMessages = [];
+      }
+      order.chatMessages.push(msgObj);
+      await order.save();
+
+      const formatted = {
+        ...msgObj,
+        orderId,
+        formattedTime: msgObj.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      // 1. Emit to dealer socket
+      dealerSocketEvents.emitChatMessage(req.dealer!.dealerId, orderId, formatted);
+
+      // 2. Forward to Kabadiwala consumer backend
+      KabadiwalaClient.forwardDealerChatMessage(orderId, req.dealer!.dealerId, {
+        id: msgObj.id,
+        sender: 'dealer',
+        senderName: dealerName,
+        text: msgObj.text,
+        timestamp: msgObj.timestamp.toISOString(),
+      }).catch((err: any) => console.warn('Cross-app chat forward error:', err.message));
+
+      res.status(201).json({ success: true, data: formatted });
+    } catch (err: any) {
+      res.status(400).json({ success: false, message: err.message });
     }
   }
 }

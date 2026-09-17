@@ -152,7 +152,17 @@ export const dealerSocketEvents = {
       ioInstance.to(`order:${orderId}`).to(`dealer:${dealerId}`).emit('pickup:completed', payload);
     } else if (status === 'EXPIRED') {
       ioInstance.to(`order:${orderId}`).to(`dealer:${dealerId}`).emit('pickup:expired', payload);
+    } else if (status === 'CANCELLED') {
+      ioInstance.to(`order:${orderId}`).to(`dealer:${dealerId}`).emit('pickup:cancelled', payload);
     }
+  },
+
+  /**
+   * Broadcast in-app chat message between dealer and customer
+   */
+  emitChatMessage: (dealerId: string, orderId: string, message: any) => {
+    if (!ioInstance) return;
+    ioInstance.to(`order:${orderId}`).to(`dealer:${dealerId}`).emit('order:chat:message', message);
   },
 
   /**

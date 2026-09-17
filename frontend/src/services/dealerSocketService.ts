@@ -95,8 +95,10 @@ class DealerSocketService {
   onOrderStatus(callback: (data: { orderId: string; status: OrderStatus; order?: any }) => void) {
     if (!this.socket) this.connect();
     this.socket?.on('pickup:status', callback);
+    this.socket?.on('pickup:cancelled', callback);
     return () => {
       this.socket?.off('pickup:status', callback);
+      this.socket?.off('pickup:cancelled', callback);
     };
   }
 

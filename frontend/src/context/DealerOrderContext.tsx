@@ -66,7 +66,11 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       const order = await dealerOrderService.getActiveOrder();
       if (order) {
-        if (order.status === 'PENDING') {
+        if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(order.status)) {
+          setActiveOrder(null);
+          setIncomingRequest(null);
+          stopAlarm();
+        } else if (order.status === 'PENDING') {
           setIncomingRequest((prev) => {
             if (!prev || prev.orderId !== order.orderId) {
               setIsAlarmPlaying(true);
@@ -100,6 +104,11 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Initial check for active or pending pickup
     fetchActiveOrder();
 
+    // Polling sync fallback (every 4 seconds) to ensure order cancellation or status sync
+    const syncInterval = setInterval(() => {
+      fetchActiveOrder();
+    }, 4000);
+
     // 1. Incoming Pickup Request Alert (Plays siren + opens modal)
     const cleanupIncoming = dealerSocketService.onIncomingPickup((order) => {
       console.log('🚨 INCOMING SCRAP PICKUP ALERT RECEIVED:', order);
@@ -112,6 +121,14 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 2. Order Status Update
     const cleanupStatus = dealerSocketService.onOrderStatus((data) => {
       console.log('📡 Dealer socket order status update:', data);
+
+      if (data.status === 'CANCELLED') {
+        setActiveOrder((prev) => (prev?.orderId === data.orderId ? null : prev));
+        setIncomingRequest((prev) => (prev?.orderId === data.orderId ? null : prev));
+        stopAlarm();
+        showToast('❌ Customer cancelled this pickup request.');
+        return;
+      }
 
       setActiveOrder((prev) => {
         if (prev && prev.orderId === data.orderId) {

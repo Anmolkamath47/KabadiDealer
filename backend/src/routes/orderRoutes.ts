@@ -28,5 +28,7 @@ router.post('/:orderId/verify-otp', validateRequest(VerifyOtpSchema), OrderContr
 router.post('/:orderId/complete', validateRequest(CompleteOrderSchema), OrderController.completeOrder);
 router.patch('/:orderId/status', validateRequest(UpdateOrderStatusSchema), OrderController.updateStatus);
 router.post('/:orderId/status', validateRequest(UpdateOrderStatusSchema), OrderController.updateStatus);
+router.get('/:orderId/chat', OrderController.getOrderChat);
+router.post('/:orderId/chat', OrderController.postDealerChat);
 
 export default router;

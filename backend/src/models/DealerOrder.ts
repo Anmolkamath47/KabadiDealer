@@ -38,6 +38,13 @@ export interface IDealerOrder extends Document {
   };
   expiresAt: Date;
   rejectionReason?: string;
+  chatMessages: Array<{
+    id: string;
+    sender: 'consumer' | 'dealer';
+    senderName: string;
+    text: string;
+    timestamp: Date;
+  }>;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -198,6 +205,15 @@ const DealerOrderSchema = new Schema<IDealerOrder>(
     rejectionReason: {
       type: String,
     },
+    chatMessages: [
+      {
+        id: { type: String, required: true },
+        sender: { type: String, enum: ['consumer', 'dealer'], required: true },
+        senderName: { type: String, default: '' },
+        text: { type: String, required: true },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
     notes: {
       type: String,
     },

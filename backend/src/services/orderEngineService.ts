@@ -171,10 +171,23 @@ export class OrderEngineService {
       { isBusy: true, location: { type: 'Point', coordinates: dealerCoords, address: dealer?.location?.address || 'Active Duty' } }
     );
 
+    const completedPickups = await DealerOrder.countDocuments({ dealerId, status: 'COMPLETED' });
+
     // Sync status & real initial location with Kabadiwala consumer backend
     await KabadiwalaClient.notifyStatusUpdate(order.orderId, dealerId, 'ACCEPTED', {
       note: 'Dealer confirmed pickup and is preparing vehicle.',
       dealerLocation: locationUpdate,
+      dealerSnapshot: {
+        businessName: dealer?.businessName,
+        contactPerson: dealer?.contactPerson,
+        phone: dealer?.phone,
+        vehicleType: dealer?.vehicleType,
+        vehicleNumber: dealer?.vehicleNumber,
+        profileImage: dealer?.profileImage || '',
+        rating: dealer?.rating || 5.0,
+        totalRatings: dealer?.totalRatings || 0,
+        completedPickups: completedPickups || dealer?.totalRatings || 0,
+      },
     });
 
     // Also send immediate location event

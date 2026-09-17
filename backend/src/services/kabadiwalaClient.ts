@@ -23,6 +23,7 @@ export class KabadiwalaClient {
       finalTotalAmount?: number;
       scrapPhoto?: string;
       dealerLocation?: any;
+      dealerSnapshot?: any;
     } = {}
   ): Promise<boolean> {
     try {
@@ -37,6 +38,7 @@ export class KabadiwalaClient {
           finalTotalAmount: options.finalTotalAmount,
           scrapPhoto: options.scrapPhoto,
           dealerLocation: options.dealerLocation,
+          dealerSnapshot: options.dealerSnapshot,
         },
         {
           headers: this.getHeaders(),
@@ -123,6 +125,7 @@ export class KabadiwalaClient {
           phone: raw.phone ? String(raw.phone) : undefined,
           businessName: raw.businessName,
           contactPerson: raw.contactPerson,
+          profileImage: raw.profileImage || '',
           isOnline: Boolean(raw.isOnline ?? true),
           isAvailable: Boolean(raw.isAvailable ?? raw.isOnline ?? true),
           rating: raw.rating,
@@ -148,6 +151,40 @@ export class KabadiwalaClient {
       return true;
     } catch (err: any) {
       console.warn(`⚠️ [Kabadiwala Cross-App Sync] Dealer presence sync warning (${err.message}).`);
+      return false;
+    }
+  }
+
+  /**
+   * Forward dealer chat message to Kabadiwala consumer backend
+   */
+  static async forwardDealerChatMessage(
+    orderId: string,
+    dealerId: string,
+    message: {
+      id: string;
+      sender: 'dealer';
+      senderName: string;
+      text: string;
+      timestamp: string;
+    }
+  ): Promise<boolean> {
+    try {
+      await axios.post(
+        `${config.kabadiwalaApiUrl}/internal/dealer-events/chat`,
+        {
+          orderId,
+          dealerId,
+          message,
+        },
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
+      return true;
+    } catch (err: any) {
+      console.warn(`⚠️ [Kabadiwala Cross-App Sync] Chat forward sync warning (${err.message}).`);
       return false;
     }
   }

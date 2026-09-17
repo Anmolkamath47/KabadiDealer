@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { DealerService } from '../services/dealerService.js';
 import { KabadiwalaClient } from '../services/kabadiwalaClient.js';
 import { AuthenticatedDealerRequest } from '../middleware/authMiddleware.js';
+import { DealerOrder } from '../models/DealerOrder.js';
 
 export const UpdateProfileSchema = z.object({
   businessName: z.string().min(2).optional(),
@@ -222,6 +223,11 @@ export class DealerController {
         return;
       }
 
+      const completedPickups = await DealerOrder.countDocuments({
+        dealerId: dealer.dealerId,
+        status: 'COMPLETED',
+      });
+
       res.status(200).json({
         success: true,
         data: {
@@ -229,8 +235,10 @@ export class DealerController {
           businessName: dealer.businessName,
           contactPerson: dealer.contactPerson,
           phone: dealer.phone,
-          rating: dealer.rating,
-          totalRatings: dealer.totalRatings,
+          profileImage: dealer.profileImage || '',
+          rating: dealer.rating || 5.0,
+          totalRatings: dealer.totalRatings || 0,
+          completedPickups: completedPickups || dealer.totalRatings || 0,
           isAvailable: dealer.isOnline,
           isOnline: dealer.isOnline,
           isBusy: dealer.isBusy,

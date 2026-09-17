@@ -134,5 +134,100 @@ export class InternalConsumerController {
       });
     }
   }
+
+  static async handleOrderCancelled(
+    req: Request,
+    res: Response,
+    _next: NextFunction
+  ): Promise<void> {
+    try {
+      const { orderId, dealerId, reason, cancelledBy } = req.body;
+      const order = await DealerOrder.findOne({ orderId });
+      if (order) {
+        order.status = 'CANCELLED';
+        order.statusHistory.push({
+          status: 'CANCELLED',
+          timestamp: new Date(),
+          note: reason || 'Order was cancelled by customer.',
+          updatedBy: (cancelledBy as any) || 'CONSUMER',
+        });
+        await order.save();
+      }
+
+      // Free the dealer
+      const targetDealerId = dealerId || order?.dealerId;
+      if (targetDealerId) {
+        await Dealer.findOneAndUpdate({ dealerId: targetDealerId }, { isBusy: false });
+      }
+
+      // Broadcast to dealer socket
+      if (targetDealerId) {
+        dealerSocketEvents.emitOrderStatusUpdate(targetDealerId, orderId, 'CANCELLED', {
+          orderId,
+          dealerId: targetDealerId,
+          status: 'CANCELLED',
+          reason: reason || 'Customer cancelled this pickup request.',
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Dealer order cancelled and alerted successfully',
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to cancel dealer order',
+      });
+    }
+  }
+
+  static async handleConsumerChatMessage(
+    req: Request,
+    res: Response,
+    _next: NextFunction
+  ): Promise<void> {
+    try {
+      const { orderId, dealerId, message } = req.body;
+      const order = await DealerOrder.findOne({ orderId });
+      if (!order) {
+        res.status(404).json({ success: false, message: 'Order not found' });
+        return;
+      }
+
+      const msgObj = {
+        id: message.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        sender: 'consumer' as const,
+        senderName: message.senderName || order.customerName || 'Customer',
+        text: message.text,
+        timestamp: message.timestamp ? new Date(message.timestamp) : new Date(),
+      };
+
+      if (!order.chatMessages) {
+        order.chatMessages = [];
+      }
+
+      if (!order.chatMessages.some((m) => m.id === msgObj.id)) {
+        order.chatMessages.push(msgObj);
+        await order.save();
+      }
+
+      // Broadcast to dealer socket
+      const targetDealerId = dealerId || order.dealerId;
+      dealerSocketEvents.emitChatMessage(targetDealerId, order.orderId, {
+        ...msgObj,
+        orderId: order.orderId,
+        formattedTime: msgObj.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Chat message received and broadcasted to dealer',
+        data: msgObj,
+      });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
 }
 
