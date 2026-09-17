@@ -74,6 +74,13 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
       }
     });
 
+    socket.on('order:chat:send', (data: any) => {
+      if (data && data.orderId && data.text) {
+        io.to(`order:${data.orderId}`).emit('order:chat:message', data);
+        console.log(`💬 Dealer socket relayed chat message in order:${data.orderId} from ${data.sender}`);
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       console.log(`🔌 Dealer socket disconnected: ${socket.id} (${reason})`);
     });

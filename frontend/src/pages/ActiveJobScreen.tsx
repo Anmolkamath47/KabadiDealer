@@ -8,6 +8,7 @@ import { DigitalWeighingModal } from '../components/order/DigitalWeighingModal';
 import { Toast } from '../components/common/Toast';
 import { SelectedMaterialItem } from '../types';
 import { getVehicleDetails } from '../utils/vehicleUtils';
+import { orderChatService, OrderChatMessage } from '../services/orderChatService';
 import {
   ArrowLeft,
   Phone,
@@ -22,6 +23,7 @@ import {
   Camera,
   Eye,
   X,
+  Send,
 } from 'lucide-react';
 
 export const ActiveJobScreen: React.FC = () => {
@@ -43,9 +45,40 @@ export const ActiveJobScreen: React.FC = () => {
   const [showWeighingModal, setShowWeighingModal] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<boolean>(false);
 
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
+  const [chatMessages, setChatMessages] = useState<OrderChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState<string>('');
+  const [hasUnreadMessage, setHasUnreadMessage] = useState<boolean>(false);
+  const [latestCustomerMsg, setLatestCustomerMsg] = useState<string | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
+
   const prevCoordsRef = useRef<[number, number] | null>(null);
 
   const vehicleInfo = getVehicleDetails(dealer?.vehicleType);
+
+  // Real-time Chat Subscription
+  useEffect(() => {
+    if (!activeOrder?.orderId) return;
+    const unsubscribe = orderChatService.subscribe(activeOrder.orderId, (msgs) => {
+      setChatMessages(msgs);
+      const customerMsgs = msgs.filter((m) => m.sender === 'consumer');
+      if (customerMsgs.length > 0) {
+        const lastMsg = customerMsgs[customerMsgs.length - 1];
+        setLatestCustomerMsg(lastMsg.text);
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [activeOrder?.orderId]);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (isChatOpen) {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, isChatOpen]);
 
   // Background Device GPS Watcher (Real-time tracking)
   useEffect(() => {
@@ -146,6 +179,18 @@ export const ActiveJobScreen: React.FC = () => {
     setShowWeighingModal(false);
   };
 
+  const handleSendDealerMessage = (textToSend?: string) => {
+    const txt = (textToSend || chatInput).trim();
+    if (!txt || !activeOrder?.orderId) return;
+    try {
+      const senderName = dealer?.contactPerson || dealer?.businessName || 'Dealer Partner';
+      orderChatService.sendMessage(activeOrder.orderId, 'dealer', senderName, txt);
+      setChatInput('');
+    } catch (err) {
+      console.warn('Failed to send dealer chat message:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 max-w-md mx-auto flex flex-col justify-between shadow-2xl pb-16 relative">
       <Toast />
@@ -173,14 +218,58 @@ export const ActiveJobScreen: React.FC = () => {
           </div>
         </div>
 
-        <a
-          href={`tel:${activeOrder.customerPhone}`}
-          className="w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-xs transition"
-          title="Call Customer"
-        >
-          <Phone className="w-4 h-4" />
-        </a>
+        <div className="flex items-center space-x-2">
+          {/* Chat with Customer button */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsChatOpen(true);
+              setHasUnreadMessage(false);
+            }}
+            className="relative w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition cursor-pointer"
+            title="Chat with Customer"
+          >
+            <MessageSquare className="w-4 h-4 text-emerald-700" />
+            {hasUnreadMessage && (
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-rose-500 border-2 border-white animate-pulse"></span>
+            )}
+          </button>
+
+          {/* Call Customer button */}
+          <a
+            href={`tel:${activeOrder.customerPhone}`}
+            className="w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-xs transition cursor-pointer"
+            title="Call Customer"
+          >
+            <Phone className="w-4 h-4" />
+          </a>
+        </div>
       </div>
+
+      {/* Customer Message Notification Banner */}
+      {latestCustomerMsg && (
+        <div className="bg-slate-900 text-white px-4 py-2.5 border-b border-slate-800 shadow-xs flex items-center justify-between z-20">
+          <div className="flex items-center space-x-2 min-w-0">
+            <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+              <MessageSquare className="w-3.5 h-3.5" />
+            </div>
+            <div className="truncate text-xs">
+              <span className="font-bold text-slate-200">{activeOrder.customerName || 'Customer'}: </span>
+              <span className="text-emerald-300">"{latestCustomerMsg}"</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setIsChatOpen(true);
+              setHasUnreadMessage(false);
+            }}
+            className="ml-2 px-2.5 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] transition cursor-pointer flex-shrink-0 uppercase tracking-wide"
+          >
+            Reply
+          </button>
+        </div>
+      )}
 
       <div className="p-4 space-y-4 overflow-y-auto flex-1">
         {/* ================= STAGE 1: ACCEPTED & STAGE 2: DEALER_EN_ROUTE (Interactive Live Navigation Map) ================= */}
@@ -508,6 +597,123 @@ export const ActiveJobScreen: React.FC = () => {
                 ₹{activeOrder.finalTotalAmount || activeOrder.estimatedTotalAmount} Paid
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dealer In-App Chat Modal with Customer */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-200">
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-emerald-700 text-white font-black text-sm flex items-center justify-center uppercase select-none shadow-inner flex-shrink-0">
+                  {(activeOrder.customerName || 'Customer').trim().charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-white truncate">
+                    {activeOrder.customerName || 'Customer'}
+                  </h3>
+                  <p className="text-[10px] text-emerald-400 font-semibold truncate">
+                    Pickup Customer · Order #{activeOrder.orderId}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                {activeOrder.customerPhone && (
+                  <a
+                    href={`tel:${activeOrder.customerPhone}`}
+                    className="w-8 h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition shadow-xs"
+                    title="Call Customer"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsChatOpen(false)}
+                  className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Message List */}
+            <div className="p-4 space-y-3 overflow-y-auto flex-1 bg-slate-50 min-h-[220px]">
+              {chatMessages.length === 0 ? (
+                <div className="text-center text-xs text-slate-400 py-8">
+                  No messages yet. Send a quick update to the customer below.
+                </div>
+              ) : (
+                chatMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex flex-col ${msg.sender === 'dealer' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
+                        msg.sender === 'dealer'
+                          ? 'bg-emerald-600 text-white rounded-tr-xs shadow-xs'
+                          : 'bg-white text-slate-800 border border-slate-200 rounded-tl-xs shadow-xs'
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                    <span className="text-[9px] text-slate-400 mt-1 px-1">
+                      {msg.formattedTime || new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Quick Dealer Response Chips */}
+            <div className="p-2.5 bg-white border-t border-slate-100 flex items-center space-x-1.5 overflow-x-auto text-[11px] select-none">
+              {[
+                'Reaching in 5 mins 🛵',
+                'I am at your gate / entrance 🚪',
+                'Please keep scrap packed & ready 📦',
+                'Please share the 4-digit OTP 🔑',
+                'Certified digital scale is ready ⚖️',
+              ].map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => handleSendDealerMessage(chip)}
+                  className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium whitespace-nowrap cursor-pointer transition active:scale-95 border border-slate-200"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Chat Input Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendDealerMessage();
+              }}
+              className="p-3 bg-white border-t border-slate-200 flex items-center space-x-2"
+            >
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Reply to customer..."
+                className="flex-1 bg-slate-100 border border-slate-200 rounded-full px-3.5 py-2 text-xs text-slate-800 outline-hidden focus:border-emerald-500 focus:bg-white transition"
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim()}
+                className="w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white flex items-center justify-center transition cursor-pointer flex-shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
           </div>
         </div>
       )}
