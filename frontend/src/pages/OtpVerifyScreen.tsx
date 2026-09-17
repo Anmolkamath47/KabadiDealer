@@ -6,7 +6,7 @@ import { ArrowLeft, CheckCircle, RotateCw } from 'lucide-react';
 export const OtpVerifyScreen: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { verifyOtpAndLogin, requestOtp } = useDealerAuth();
+  const { verifyOtpAndLogin, loginWithPhone, requestOtp } = useDealerAuth();
 
   const phone = (location.state as any)?.phone || '';
 
@@ -28,12 +28,18 @@ export const OtpVerifyScreen: React.FC = () => {
       return;
     }
 
-    inputRefs[0].current?.focus();
-    const interval = setInterval(() => {
-      setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [phone, navigate]);
+    loginWithPhone(phone)
+      .then((res) => {
+        if (!res.dealer?.isProfileCompleted || res.isNewDealer) {
+          navigate('/onboarding', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
+      })
+      .catch(() => {
+        navigate('/login', { replace: true });
+      });
+  }, [phone, navigate, loginWithPhone]);
 
   const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;

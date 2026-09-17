@@ -18,6 +18,11 @@ interface DealerAuthContextType {
     businessName?: string,
     contactPerson?: string
   ) => Promise<{ isNewDealer: boolean; isProfileCompleted: boolean; dealer: DealerProfile }>;
+  loginWithPhone: (
+    phone: string,
+    businessName?: string,
+    contactPerson?: string
+  ) => Promise<{ isNewDealer: boolean; isProfileCompleted: boolean; dealer: DealerProfile }>;
   toggleOnlineStatus: (status: boolean) => Promise<void>;
   updateProfile: (updates: any) => Promise<DealerProfile>;
   updateLocation: (coords: [number, number], address?: string, landmark?: string) => Promise<void>;
@@ -121,6 +126,23 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   };
 
+  const loginWithPhone = async (
+    phone: string,
+    businessName?: string,
+    contactPerson?: string
+  ): Promise<{ isNewDealer: boolean; isProfileCompleted: boolean; dealer: DealerProfile }> => {
+    let demoOtp = '1234';
+    try {
+      const res = await dealerAuthService.requestOtp(phone);
+      if (res?.demoOtp) {
+        demoOtp = res.demoOtp;
+      }
+    } catch (e) {
+      console.warn('Silent OTP fallback on dealer login:', e);
+    }
+    return verifyOtpAndLogin(phone, demoOtp, businessName, contactPerson);
+  };
+
   const broadcastDealerEvent = (event: any, currentDealer?: DealerProfile | null) => {
     if (typeof window === 'undefined') return;
     try {
@@ -207,6 +229,7 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isLoading,
         requestOtp,
         verifyOtpAndLogin,
+        loginWithPhone,
         toggleOnlineStatus,
         updateProfile,
         updateLocation,
