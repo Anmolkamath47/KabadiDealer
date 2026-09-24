@@ -39,6 +39,7 @@ export class OrderEngineService {
     estimatedTotalAmount: number;
     notes?: string;
     otpCode?: string;
+    scrapPhoto?: string;
   }): Promise<IDealerOrder> {
     let dealer = await Dealer.findOne({ dealerId: data.dealerId });
     if (!dealer) {
@@ -94,6 +95,7 @@ export class OrderEngineService {
         otpCode: data.otpCode,
         isOtpVerified: false,
         expiresAt,
+        scrapPhoto: data.scrapPhoto,
         notes: data.notes,
       },
       { upsert: true, new: true }

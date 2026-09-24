@@ -115,6 +115,8 @@ export const dealerSocketEvents = {
       distanceKm: orderData.distanceKm,
       selectedMaterials: orderData.selectedMaterials,
       estimatedTotalAmount: orderData.estimatedTotalAmount,
+      scrapPhoto: orderData.scrapPhoto,
+      notes: orderData.notes,
       expiresAt: orderData.expiresAt,
       createdAt: orderData.createdAt,
     });

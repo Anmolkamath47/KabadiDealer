@@ -115,7 +115,7 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIncomingRequest(order);
       setIsAlarmPlaying(true);
       soundService.startSiren();
-      showToast(`🚨 New Scrap Pickup Request from ${order.customerName || 'Customer'}!`);
+      showToast(`🚨 New Scrap Pickup Request from ${order.customerName || 'Customer'}!${order.scrapPhoto ? ' (📸 Photo Attached)' : ''}`);
     });
 
     // 2. Order Status Update

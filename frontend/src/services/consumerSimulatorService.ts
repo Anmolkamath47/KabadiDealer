@@ -27,6 +27,7 @@ export const consumerSimulatorService = {
       ],
       estimatedTotalAmount: 1040,
       otpCode,
+      scrapPhoto: '/sample_scrap_photo.jpg',
       notes: 'Please bring certified electronic scale. Doorbell on ground floor.',
     };
 

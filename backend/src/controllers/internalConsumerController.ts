@@ -16,6 +16,7 @@ export const IncomingPickupSchema = z.object({
   selectedMaterials: z.array(z.any()),
   estimatedTotalAmount: z.number(),
   otpCode: z.string().optional(),
+  scrapPhoto: z.string().optional(),
   notes: z.string().optional(),
 });
 

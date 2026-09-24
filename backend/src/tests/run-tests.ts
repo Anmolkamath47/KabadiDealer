@@ -107,9 +107,11 @@ async function runTestSuite() {
       ],
       estimatedTotalAmount: 500,
       otpCode: '4827',
+      scrapPhoto: 'data:image/jpeg;base64,test_scrap_photo_base64',
     });
 
     assert(newOrder.status === 'PENDING', 'Incoming order starts in PENDING status');
+    assert(newOrder.scrapPhoto === 'data:image/jpeg;base64,test_scrap_photo_base64', 'Dealer received scrap photo uploaded by consumer');
     assert(!!newOrder.expiresAt, 'Incoming request contains expiration timestamp');
 
     // Accept Order

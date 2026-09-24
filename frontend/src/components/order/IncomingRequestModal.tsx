@@ -10,6 +10,9 @@ import {
   Check,
   X,
   AlertTriangle,
+  Camera,
+  Eye,
+  ZoomIn,
 } from 'lucide-react';
 
 export const IncomingRequestModal: React.FC = () => {
@@ -23,6 +26,7 @@ export const IncomingRequestModal: React.FC = () => {
   } = useDealerOrder();
 
   const [timeLeft, setTimeLeft] = useState<number>(60);
+  const [showPhotoLightbox, setShowPhotoLightbox] = useState<boolean>(false);
 
   useEffect(() => {
     if (!incomingRequest) return;
@@ -136,13 +140,54 @@ export const IncomingRequestModal: React.FC = () => {
           )}
         </div>
 
+        {/* Customer Uploaded Scrap Photo Card */}
+        {incomingRequest.scrapPhoto ? (
+          <div className="bg-gradient-to-br from-emerald-50/70 to-slate-50 p-3 rounded-2xl border-2 border-emerald-300 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center space-x-1.5 font-extrabold text-emerald-900">
+                <Camera className="w-4 h-4 text-emerald-600" />
+                <span>Customer Uploaded Scrap Photo</span>
+              </div>
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center space-x-1">
+                <span>📸 Photo Attached</span>
+              </span>
+            </div>
+
+            <div
+              onClick={() => setShowPhotoLightbox(true)}
+              className="relative h-40 rounded-xl overflow-hidden cursor-pointer group bg-slate-900 border border-slate-200 shadow-xs"
+              title="Click to view full photo"
+            >
+              <img
+                src={incomingRequest.scrapPhoto}
+                alt="Scrap Uploaded by Customer"
+                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+              />
+              <div className="absolute inset-0 bg-black/25 group-hover:bg-black/10 transition flex items-center justify-center">
+                <span className="bg-slate-900/85 backdrop-blur-md text-white text-xs font-bold py-1.5 px-3 rounded-xl flex items-center space-x-1.5 opacity-90 group-hover:opacity-100 transition shadow-md">
+                  <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Tap to Inspect Photo</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-slate-50 px-3.5 py-2.5 rounded-2xl border border-dashed border-slate-300 flex items-center justify-between text-xs text-slate-500">
+            <span className="flex items-center space-x-1.5">
+              <Camera className="w-3.5 h-3.5 text-slate-400" />
+              <span>No scrap photo attached</span>
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">Verify on site</span>
+          </div>
+        )}
+
         {/* Action Buttons: Accept / Reject */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           <button
             type="button"
             onClick={handleReject}
             disabled={isLoading}
-            className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition"
+            className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition cursor-pointer"
           >
             <X className="w-4 h-4 text-slate-500" />
             <span>Decline</span>
@@ -152,13 +197,55 @@ export const IncomingRequestModal: React.FC = () => {
             type="button"
             onClick={handleAccept}
             disabled={isLoading}
-            className="py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center space-x-2 transition shadow-md ring-4 ring-emerald-600/20"
+            className="py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center space-x-2 transition shadow-md ring-4 ring-emerald-600/20 cursor-pointer"
           >
             <Check className="w-5 h-5" />
             <span>{isLoading ? 'Accepting...' : 'ACCEPT PICKUP'}</span>
           </button>
         </div>
       </div>
+
+      {/* Full Photo Lightbox Modal */}
+      {showPhotoLightbox && incomingRequest.scrapPhoto && (
+        <div
+          onClick={() => setShowPhotoLightbox(false)}
+          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl relative"
+          >
+            <div className="p-3 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between text-white">
+              <div className="flex items-center space-x-2 text-xs font-bold">
+                <Camera className="w-4 h-4 text-emerald-400" />
+                <span>Customer Scrap Photo (Order #{incomingRequest.orderId})</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPhotoLightbox(false)}
+                className="p-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="relative max-h-[70vh] overflow-hidden bg-black flex items-center justify-center">
+              <img
+                src={incomingRequest.scrapPhoto}
+                alt="Full Scrap View"
+                className="w-full max-h-[70vh] object-contain"
+              />
+            </div>
+
+            <div className="p-3 bg-slate-800 text-slate-300 text-xs flex items-center justify-between">
+              <span>{incomingRequest.customerName || 'Customer'}</span>
+              <span className="text-emerald-400 font-bold">
+                Est. ₹{incomingRequest.estimatedTotalAmount}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
