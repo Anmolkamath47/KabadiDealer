@@ -550,38 +550,7 @@ export const ActiveJobScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Customer Uploaded Scrap Photo Card (Reference for Dealer) */}
-        {activeOrder.scrapPhoto && activeOrder.status !== 'COMPLETED' && (
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-card space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
-                <Camera className="w-4 h-4 text-emerald-600" />
-                <span>Customer Uploaded Scrap Photo</span>
-              </div>
-              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                Booking Photo
-              </span>
-            </div>
 
-            <div
-              onClick={() => setPreviewPhoto(true)}
-              className="relative h-44 rounded-2xl overflow-hidden cursor-pointer group bg-slate-950 border border-slate-200 shadow-xs"
-              title="Click to view full photo"
-            >
-              <img
-                src={activeOrder.scrapPhoto}
-                alt="Customer Scrap Photo"
-                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-              />
-              <div className="absolute inset-0 bg-black/25 group-hover:bg-black/10 transition flex items-center justify-center">
-                <span className="bg-slate-900/80 backdrop-blur-md text-white text-xs font-bold py-1.5 px-3 rounded-xl flex items-center space-x-1.5 opacity-90 group-hover:opacity-100 transition shadow-md">
-                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Tap to View Full Photo</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Digital Scale Weighing Modal */}
