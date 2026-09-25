@@ -75,8 +75,24 @@ export const dealerOrderService = {
   async updateScrapPrices(scrapRates: ScrapRateItem[]): Promise<ScrapRateItem[]> {
     try {
       const res = await api.put('/dealers/prices', { scrapRates });
+      const cached = localStorage.getItem('kabadidealer_dealer');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          parsed.scrapRates = scrapRates;
+          localStorage.setItem('kabadidealer_dealer', JSON.stringify(parsed));
+        } catch {}
+      }
       return res.data.data;
     } catch {
+      const cached = localStorage.getItem('kabadidealer_dealer');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          parsed.scrapRates = scrapRates;
+          localStorage.setItem('kabadidealer_dealer', JSON.stringify(parsed));
+        } catch {}
+      }
       return scrapRates;
     }
   },

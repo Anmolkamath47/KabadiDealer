@@ -77,6 +77,9 @@ export const dealerAuthService = {
             vehicleType: 'Tata Ace Mini Truck',
             vehicleNumber: 'KA-04-TR-5600',
             scrapRates: [
+              { category: 'E-Waste', name: 'Old Electronics & CPU Boards', unit: 'kg', pricePerKg: 55, minQuantityKg: 1, icon: 'cpu' },
+              { category: 'E-Waste', name: 'Broken Laptops & Computers', unit: 'piece', pricePerKg: 250, minQuantityKg: 1, icon: 'laptop' },
+              { category: 'E-Waste', name: 'Old Mobile Phones & Tablets', unit: 'piece', pricePerKg: 120, minQuantityKg: 1, icon: 'smartphone' },
               { category: 'Paper', name: 'Newspaper (Raddi)', unit: 'kg', pricePerKg: 14, minQuantityKg: 5, icon: 'newspaper' },
               { category: 'Paper', name: 'Books & Notebooks', unit: 'kg', pricePerKg: 12, minQuantityKg: 5, icon: 'book' },
               { category: 'Cardboard', name: 'Corrugated Cardboard (Gatta)', unit: 'kg', pricePerKg: 10, minQuantityKg: 5, icon: 'box' },
@@ -86,7 +89,6 @@ export const dealerAuthService = {
               { category: 'Aluminium', name: 'Aluminium Cans & Utensils', unit: 'kg', pricePerKg: 145, minQuantityKg: 1, icon: 'utensils' },
               { category: 'Copper', name: 'Pure Copper Wire (Taamba)', unit: 'kg', pricePerKg: 490, minQuantityKg: 0.5, icon: 'zap' },
               { category: 'Brass', name: 'Brass Items (Peetal)', unit: 'kg', pricePerKg: 340, minQuantityKg: 0.5, icon: 'shield' },
-              { category: 'E-Waste', name: 'Old Electronics & CPU Boards', unit: 'kg', pricePerKg: 55, minQuantityKg: 1, icon: 'cpu' },
             ],
           };
           return {

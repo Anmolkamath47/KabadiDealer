@@ -1,10 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { DealerProfile } from '../types';
+import { DealerProfile, ScrapRateItem } from '../types';
 import { dealerAuthService } from '../services/dealerAuthService';
 import { dealerOrderService } from '../services/dealerOrderService';
 import { dealerSocketService } from '../services/dealerSocketService';
 import { crossOriginSync } from '../services/crossOriginSyncService';
 import { reconcileCityCoordinates } from '../utils/geoUtils';
+
+export const prioritizeEWasteRates = (rates: ScrapRateItem[]): ScrapRateItem[] => {
+  if (!rates || !Array.isArray(rates)) return [];
+  const ewaste = rates.filter((r) => r.category === 'E-Waste');
+  const others = rates.filter((r) => r.category !== 'E-Waste');
+  return [...ewaste, ...others];
+};
 
 interface DealerAuthContextType {
   dealer: DealerProfile | null;
@@ -37,13 +44,16 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!saved) return null;
     try {
       const parsed = JSON.parse(saved);
+      if (parsed?.scrapRates) {
+        parsed.scrapRates = prioritizeEWasteRates(parsed.scrapRates);
+      }
       if (parsed?.location?.address) {
         const healed = reconcileCityCoordinates(parsed.location.address, parsed.location.coordinates);
         if (parsed.location.coordinates && (parsed.location.coordinates[0] !== healed[0] || parsed.location.coordinates[1] !== healed[1])) {
           parsed.location.coordinates = healed;
-          localStorage.setItem('kabadidealer_dealer', JSON.stringify(parsed));
         }
       }
+      localStorage.setItem('kabadidealer_dealer', JSON.stringify(parsed));
       return parsed;
     } catch {
       return null;
@@ -58,6 +68,9 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (storedToken) {
         try {
           const profile = await dealerAuthService.getMe();
+          if (profile?.scrapRates) {
+            profile.scrapRates = prioritizeEWasteRates(profile.scrapRates);
+          }
           setDealer(profile);
           localStorage.setItem('kabadidealer_dealer', JSON.stringify(profile));
           dealerSocketService.connect(profile.dealerId, storedToken);
@@ -71,6 +84,9 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             if (saved) {
               try {
                 const parsed = JSON.parse(saved);
+                if (parsed?.scrapRates) {
+                  parsed.scrapRates = prioritizeEWasteRates(parsed.scrapRates);
+                }
                 setDealer(parsed);
                 dealerSocketService.connect(parsed.dealerId, storedToken);
               } catch {}
@@ -102,6 +118,9 @@ export const DealerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     contactPerson?: string
   ): Promise<{ isNewDealer: boolean; isProfileCompleted: boolean; dealer: DealerProfile }> => {
     const data = await dealerAuthService.verifyOtp(phone, otp, businessName, contactPerson);
+    if (data?.dealer?.scrapRates) {
+      data.dealer.scrapRates = prioritizeEWasteRates(data.dealer.scrapRates);
+    }
     setToken(data.accessToken);
     setDealer(data.dealer);
     localStorage.setItem('kabadidealer_token', data.accessToken);
