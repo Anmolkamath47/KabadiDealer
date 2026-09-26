@@ -8,7 +8,7 @@ import { DigitalWeighingModal } from '../components/order/DigitalWeighingModal';
 import { Toast } from '../components/common/Toast';
 import { SelectedMaterialItem } from '../types';
 import { getVehicleDetails } from '../utils/vehicleUtils';
-import { orderChatService, OrderChatMessage } from '../services/orderChatService';
+import { orderChatService, OrderChatMessage, formatChatTime } from '../services/orderChatService';
 import {
   ArrowLeft,
   Phone,
@@ -665,7 +665,7 @@ export const ActiveJobScreen: React.FC = () => {
                       {msg.text}
                     </div>
                     <span className="text-[9px] text-slate-400 mt-1 px-1">
-                      {msg.formattedTime || new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatChatTime(msg.timestamp, msg.formattedTime)}
                     </span>
                   </div>
                 ))

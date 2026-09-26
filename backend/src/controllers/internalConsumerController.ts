@@ -218,7 +218,11 @@ export class InternalConsumerController {
       dealerSocketEvents.emitChatMessage(targetDealerId, order.orderId, {
         ...msgObj,
         orderId: order.orderId,
-        formattedTime: msgObj.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        formattedTime: msgObj.timestamp.toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Kolkata',
+        }),
       });
 
       res.status(200).json({

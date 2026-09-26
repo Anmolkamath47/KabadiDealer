@@ -332,7 +332,11 @@ export class OrderController {
       const messages = (order?.chatMessages || []).map((m: any) => ({
         ...m,
         orderId,
-        formattedTime: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        formattedTime: new Date(m.timestamp).toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Kolkata',
+        }),
       }));
       res.status(200).json({ success: true, data: messages });
     } catch (err: any) {
@@ -377,7 +381,11 @@ export class OrderController {
       const formatted = {
         ...msgObj,
         orderId,
-        formattedTime: msgObj.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        formattedTime: msgObj.timestamp.toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Kolkata',
+        }),
       };
 
       // 1. Emit to dealer socket

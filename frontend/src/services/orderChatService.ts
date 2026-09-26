@@ -11,6 +11,22 @@ export interface OrderChatMessage {
   formattedTime: string;
 }
 
+export const formatChatTime = (
+  timestamp?: string | Date | number,
+  fallbackTime?: string
+): string => {
+  if (timestamp) {
+    const d = new Date(timestamp);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+  }
+  return fallbackTime || '';
+};
+
 type MessageListener = (messages: OrderChatMessage[]) => void;
 
 class OrderChatService {
@@ -53,6 +69,7 @@ class OrderChatService {
     try {
       const raw = localStorage.getItem(this.getStorageKey(orderId));
       if (!raw) {
+        const initTime = new Date(Date.now() - 3 * 60 * 1000);
         const defaultMessages: OrderChatMessage[] = [
           {
             id: `msg_init_${orderId}`,
@@ -60,18 +77,21 @@ class OrderChatService {
             sender: 'dealer',
             senderName: 'Dealer Partner',
             text: 'Hello! I am on the way with a certified digital scale. Please keep your scrap ready at the doorstep.',
-            timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-            formattedTime: new Date(Date.now() - 3 * 60 * 1000).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
+            timestamp: initTime.toISOString(),
+            formattedTime: formatChatTime(initTime),
           },
         ];
         this.saveMessages(orderId, defaultMessages);
         return defaultMessages;
       }
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      if (Array.isArray(parsed)) {
+        return parsed.map((m: OrderChatMessage) => ({
+          ...m,
+          formattedTime: formatChatTime(m.timestamp, m.formattedTime),
+        }));
+      }
+      return [];
     } catch {
       return [];
     }
@@ -97,19 +117,15 @@ class OrderChatService {
           let changed = false;
 
           for (const sm of serverMsgs) {
+            const rawTime = sm.timestamp || new Date().toISOString();
             const formatted: OrderChatMessage = {
               id: sm.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
               orderId,
               sender: sm.sender,
               senderName: sm.senderName || '',
               text: sm.text,
-              timestamp: sm.timestamp || new Date().toISOString(),
-              formattedTime:
-                sm.formattedTime ||
-                new Date(sm.timestamp || Date.now()).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }),
+              timestamp: rawTime,
+              formattedTime: formatChatTime(rawTime, sm.formattedTime),
             };
 
             const existingIdx = current.findIndex(
@@ -118,6 +134,16 @@ class OrderChatService {
             if (existingIdx === -1) {
               current.push(formatted);
               changed = true;
+            } else {
+              // Ensure existing message has accurate time
+              if (
+                current[existingIdx].formattedTime !== formatted.formattedTime ||
+                current[existingIdx].timestamp !== formatted.timestamp
+              ) {
+                current[existingIdx].formattedTime = formatted.formattedTime;
+                current[existingIdx].timestamp = formatted.timestamp;
+                changed = true;
+              }
             }
           }
 
@@ -151,7 +177,7 @@ class OrderChatService {
       senderName,
       text: cleanText,
       timestamp: now.toISOString(),
-      formattedTime: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      formattedTime: formatChatTime(now),
     };
 
     // 1. Optimistically save to local storage & notify current listeners
@@ -189,8 +215,22 @@ class OrderChatService {
 
   private handleIncomingMessage(msg: OrderChatMessage): void {
     const current = this.getMessages(msg.orderId);
-    if (!current.some((m) => m.id === msg.id || (m.text === msg.text && m.sender === msg.sender))) {
-      current.push(msg);
+    const existingIdx = current.findIndex(
+      (m) => m.id === msg.id || (m.text === msg.text && m.sender === msg.sender)
+    );
+    const processedMsg: OrderChatMessage = {
+      ...msg,
+      formattedTime: formatChatTime(msg.timestamp, msg.formattedTime),
+    };
+
+    if (existingIdx === -1) {
+      current.push(processedMsg);
+      this.saveMessages(msg.orderId, current);
+    } else {
+      current[existingIdx] = {
+        ...current[existingIdx],
+        ...processedMsg,
+      };
       this.saveMessages(msg.orderId, current);
     }
     this.notifyListeners(msg.orderId);
@@ -229,19 +269,15 @@ class OrderChatService {
         if (socket) {
           const onMsg = (data: any) => {
             if (data && data.orderId === orderId) {
+              const rawTime = data.timestamp || new Date().toISOString();
               this.handleIncomingMessage({
                 id: data.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
                 orderId: data.orderId,
                 sender: data.sender || 'consumer',
                 senderName: data.senderName || 'Customer',
                 text: data.text || '',
-                timestamp: data.timestamp || new Date().toISOString(),
-                formattedTime:
-                  data.formattedTime ||
-                  new Date(data.timestamp || Date.now()).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  }),
+                timestamp: rawTime,
+                formattedTime: formatChatTime(rawTime, data.formattedTime),
               });
             }
           };
