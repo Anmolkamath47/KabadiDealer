@@ -13,6 +13,9 @@ import { notFoundHandler, globalErrorHandler } from './middleware/errorMiddlewar
 
 const app = express();
 
+// Trust proxy for accurate client IP identification on Render / reverse proxies
+app.set('trust proxy', 1);
+
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },

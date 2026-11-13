@@ -35,5 +35,9 @@ export const config = {
   useMemoryDb: process.env.USE_MEMORY_DB === 'true' || process.env.NODE_ENV === 'test',
   otpDemoCode: process.env.OTP_DEMO_CODE || '1234',
   pickupRequestTimeoutSeconds: parseInt(process.env.PICKUP_REQUEST_TIMEOUT_SECONDS || '60', 10),
+  redisUrl: process.env.REDIS_URL || process.env.REDIS_TLS_URL || '',
+  rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
+  locationRateLimitMax: parseInt(process.env.LOCATION_RATE_LIMIT_MAX || '20', 10),
+  ipRateLimitMax: parseInt(process.env.IP_RATE_LIMIT_MAX || '10', 10),
 };
 

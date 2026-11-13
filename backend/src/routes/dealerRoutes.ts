@@ -8,11 +8,12 @@ import {
 } from '../controllers/dealerController.js';
 import { requireDealerAuth } from '../middleware/authMiddleware.js';
 import { validateRequest } from '../middleware/validationMiddleware.js';
+import { nearbyDealersRateLimiter } from '../middleware/locationRateLimiter.js';
 
 const router = Router();
 
 // Public discovery routes for Kabadiwala consumer backend
-router.get('/nearby', DealerController.getNearbyActiveDealers);
+router.get('/nearby', nearbyDealersRateLimiter, DealerController.getNearbyActiveDealers);
 
 // Authenticated Dealer routes
 router.get('/profile', requireDealerAuth, DealerController.getProfile);
