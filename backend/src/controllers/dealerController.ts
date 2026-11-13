@@ -1,0 +1,360 @@
+import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
+import { DealerService } from '../services/dealerService.js';
+import { KabadiwalaClient } from '../services/kabadiwalaClient.js';
+import { AuthenticatedDealerRequest } from '../middleware/authMiddleware.js';
+import { DealerOrder } from '../models/DealerOrder.js';
+
+export const UpdateProfileSchema = z.object({
+  businessName: z.string().min(2).optional(),
+  contactPerson: z.string().min(2).optional(),
+  profileImage: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  isProfileCompleted: z.boolean().optional(),
+  vehicleType: z.string().optional(),
+  vehicleNumber: z.string().optional(),
+  activeRadiusKm: z.number().min(1).max(50).optional(),
+});
+
+export const UpdateLocationSchema = z.object({
+  coordinates: z.tuple([z.number(), z.number()]),
+  address: z.string().optional(),
+  landmark: z.string().optional(),
+});
+
+export const SetStatusSchema = z.object({
+  isOnline: z.boolean(),
+});
+
+export const UpdatePricesSchema = z.object({
+  scrapRates: z.array(
+    z.object({
+      category: z.enum([
+        'Paper',
+        'Plastic',
+        'Metal',
+        'Aluminium',
+        'Copper',
+        'Brass',
+        'E-Waste',
+        'Cardboard',
+        'Glass',
+        'Other',
+      ]),
+      name: z.string(),
+      unit: z.enum(['kg', 'piece']).default('kg'),
+      pricePerKg: z.number().positive(),
+      minQuantityKg: z.number().optional(),
+      icon: z.string().optional(),
+    })
+  ),
+});
+
+export class DealerController {
+  static async getProfile(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const dealer = await DealerService.getProfile(req.dealer!.dealerId);
+      res.status(200).json({ success: true, data: dealer });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateProfile(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const updated = await DealerService.updateProfile(req.dealer!.dealerId, req.body);
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
+      res.status(200).json({
+        success: true,
+        message: 'Dealer profile updated successfully',
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateLocation(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const { coordinates, address, landmark } = req.body;
+      const updated = await DealerService.updateLocation(
+        req.dealer!.dealerId,
+        coordinates,
+        address,
+        landmark
+      );
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
+      res.status(200).json({
+        success: true,
+        message: 'Dealer location updated successfully',
+        data: updated?.location,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async setStatus(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const { isOnline } = req.body;
+      const updated = await DealerService.setOnlineStatus(req.dealer!.dealerId, isOnline);
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
+      res.status(200).json({
+        success: true,
+        message: isOnline ? 'You are now ONLINE and ready for pickups' : 'You are now OFFLINE',
+        data: { isOnline: updated?.isOnline },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getPrices(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      res.status(200).json({
+        success: true,
+        data: req.dealer!.scrapRates,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updatePrices(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const updated = await DealerService.updateScrapRates(
+        req.dealer!.dealerId,
+        req.body.scrapRates
+      );
+      if (updated) {
+        KabadiwalaClient.notifyDealerPresence(updated).catch(() => {});
+      }
+      res.status(200).json({
+        success: true,
+        message: 'Scrap buying rates updated successfully',
+        data: updated?.scrapRates,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Public discovery endpoint for Kabadiwala backend
+   */
+  static async getNearbyActiveDealers(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      const radius = req.query.radius ? parseFloat(req.query.radius as string) : 15;
+
+      if (isNaN(lat) || isNaN(lng)) {
+        res.status(400).json({
+          success: false,
+          message: 'Valid lat and lng query parameters required.',
+        });
+        return;
+      }
+
+      const dealers = await DealerService.getNearbyActiveDealers(lat, lng, radius);
+      res.status(200).json({
+        success: true,
+        data: {
+          count: dealers.length,
+          dealers,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Public endpoint to fetch dealer details and current scrap rates by dealerId
+   */
+  static async getPublicDealerById(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const dealerId = req.params.dealerId as string;
+      const dealer = await DealerService.getProfile(dealerId);
+
+      if (!dealer) {
+        res.status(404).json({
+          success: false,
+          message: `Dealer with ID ${dealerId} not found`,
+        });
+        return;
+      }
+
+      const completedPickups = await DealerOrder.countDocuments({
+        dealerId: dealer.dealerId,
+        status: 'COMPLETED',
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          dealerId: dealer.dealerId,
+          businessName: dealer.businessName,
+          contactPerson: dealer.contactPerson,
+          phone: dealer.phone,
+          profileImage: dealer.profileImage || '',
+          rating: dealer.rating || 5.0,
+          totalRatings: dealer.totalRatings || 0,
+          completedPickups: completedPickups || dealer.totalRatings || 0,
+          isAvailable: dealer.isOnline,
+          isOnline: dealer.isOnline,
+          isBusy: dealer.isBusy,
+          activeRadiusKm: dealer.activeRadiusKm,
+          location: dealer.location,
+          address: dealer.location?.address,
+          vehicleType: dealer.vehicleType,
+          vehicleNumber: dealer.vehicleNumber,
+          scrapRates: dealer.scrapRates,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Recycler / Dealer lists a new recycled product for the marketplace
+   */
+  static async listRecycledProduct(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const dealer = req.dealer!;
+      const {
+        name,
+        description,
+        category,
+        images,
+        originalPrice,
+        discountedPrice,
+        maxRewardCoins,
+        stock,
+        specifications,
+      } = req.body;
+
+      const productPayload = {
+        productId: `REC-${dealer.dealerId.replace(/[^A-Z0-9]/gi, '')}-${Date.now().toString(36).toUpperCase()}`,
+        recyclerId: dealer.dealerId,
+        recyclerName: dealer.businessName || 'Certified Recycler Partner',
+        recyclerLocation: {
+          address: dealer.location?.address || 'Service Hub',
+          city: 'Delhi NCR',
+          rating: dealer.rating || 4.9,
+        },
+        name,
+        description,
+        category,
+        images: images && images.length > 0 ? images : ['https://images.unsplash.com/photo-1533090161767-e6ffed986c88?auto=format&fit=crop&w=800&q=80'],
+        originalPrice: Number(originalPrice),
+        discountedPrice: Number(discountedPrice),
+        maxRewardCoins: maxRewardCoins !== undefined ? Number(maxRewardCoins) : Math.min(Math.floor(Number(discountedPrice) * 0.25), 200),
+        stock: Number(stock) || 5,
+        specifications: specifications || [],
+        isActive: true,
+        isApproved: true,
+      };
+
+      const synced = await KabadiwalaClient.syncRecycledProduct(productPayload);
+
+      res.status(201).json({
+        success: true,
+        message: 'Recycled product listed and published to consumer marketplace',
+        data: {
+          ...productPayload,
+          syncedToMarketplace: synced,
+        },
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to list recycled product',
+      });
+    }
+  }
+
+  /**
+   * Recycler gets their listed products
+   */
+  static async getMyProducts(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const dealer = req.dealer!;
+      const products = await KabadiwalaClient.getProductsByRecycler(dealer.dealerId);
+      res.status(200).json({
+        success: true,
+        data: products,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Recycler deletes their product listing
+   */
+  static async deleteProduct(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const dealer = req.dealer!;
+      const productId = req.params.productId as string;
+      const deleted = await KabadiwalaClient.deleteRecycledProduct(productId, dealer.dealerId);
+      res.status(200).json({
+        success: true,
+        message: deleted ? 'Product deleted successfully' : 'Failed to delete product',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}
