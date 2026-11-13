@@ -22,15 +22,23 @@ app.use(
   })
 );
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-dealer-api-key', 'x-internal-key'],
-  })
-);
-app.options('*', cors());
+const corsOptions = {
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-dealer-api-key', 'x-internal-key'],
+  exposedHeaders: [
+    'Retry-After',
+    'X-RateLimit-Limit-IP',
+    'X-RateLimit-Remaining-IP',
+    'X-RateLimit-Limit-Location',
+    'X-RateLimit-Remaining-Location',
+    'X-RateLimit-Geohash',
+    'X-RateLimit-Reset',
+  ],
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

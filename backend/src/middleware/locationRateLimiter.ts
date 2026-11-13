@@ -138,15 +138,25 @@ export const createLocationAndIpRateLimiter = (
     try {
       const clientIp = extractClientIp(req);
 
+      // Always expose rate-limiting headers so browser DevTools and client apps can inspect them
+      res.setHeader(
+        'Access-Control-Expose-Headers',
+        'Retry-After, X-RateLimit-Limit-IP, X-RateLimit-Remaining-IP, X-RateLimit-Limit-Location, X-RateLimit-Remaining-Location, X-RateLimit-Geohash, X-RateLimit-Reset'
+      );
+
       // 1. IP-based limit check
       const ipKey = `rl:ip${prefix}:${clientIp}`;
       const ipRecord = await rateLimitStore.increment(ipKey, windowMs);
 
+      res.setHeader('X-RateLimit-Limit-IP', maxIpRequests.toString());
+      res.setHeader(
+        'X-RateLimit-Remaining-IP',
+        Math.max(0, maxIpRequests - ipRecord.totalHits).toString()
+      );
+
       if (ipRecord.totalHits > maxIpRequests) {
         const retryAfterSec = Math.max(1, Math.ceil((ipRecord.resetTime - Date.now()) / 1000));
         res.setHeader('Retry-After', retryAfterSec.toString());
-        res.setHeader('X-RateLimit-Limit-IP', maxIpRequests.toString());
-        res.setHeader('X-RateLimit-Remaining-IP', '0');
         res.setHeader('X-RateLimit-Reset', Math.ceil(ipRecord.resetTime / 1000).toString());
 
         res.status(429).json({
