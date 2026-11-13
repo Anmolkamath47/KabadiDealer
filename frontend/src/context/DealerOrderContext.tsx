@@ -66,6 +66,9 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       const order = await dealerOrderService.getActiveOrder();
       if (order) {
+        if (order.dealerId && dealer?.dealerId && order.dealerId !== dealer.dealerId) {
+          return null;
+        }
         if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(order.status)) {
           setActiveOrder(null);
           setIncomingRequest(null);
@@ -112,6 +115,11 @@ export const DealerOrderProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 1. Incoming Pickup Request Alert (Plays siren + opens modal)
     const cleanupIncoming = dealerSocketService.onIncomingPickup((order) => {
       console.log('🚨 INCOMING SCRAP PICKUP ALERT RECEIVED:', order);
+      // Strictly verify that this pickup request is specifically addressed to THIS dealer
+      if (order.dealerId && dealer.dealerId && order.dealerId !== dealer.dealerId) {
+        console.warn(`[DealerOrderContext] Ignoring pickup alert intended for dealer ${order.dealerId} (currently logged in as ${dealer.dealerId})`);
+        return;
+      }
       setIncomingRequest(order);
       setIsAlarmPlaying(true);
       soundService.startSiren();

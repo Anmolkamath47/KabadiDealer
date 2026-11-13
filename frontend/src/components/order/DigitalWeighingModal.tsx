@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { FinalWeightItem, SelectedMaterialItem } from '../../types';
 import {
@@ -31,39 +31,48 @@ const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
+      const result = e.target?.result as string;
+      if (!result) {
+        reject(new Error('Empty file'));
+        return;
+      }
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 1200;
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
 
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
           }
-        }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(e.target?.result as string);
-          return;
-        }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(result);
+            return;
+          }
 
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-        resolve(dataUrl);
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl);
+        } catch {
+          resolve(result);
+        }
       };
-      img.onerror = () => resolve(e.target?.result as string);
-      img.src = e.target?.result as string;
+      img.onerror = () => resolve(result);
+      img.src = result;
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsDataURL(file);
   });
 };
@@ -91,8 +100,87 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
   const [scrapPhoto, setScrapPhoto] = useState<string | null>(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState<boolean>(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [isLiveCamera, setIsLiveCamera] = useState<boolean>(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  // Stop camera tracks cleanly on unmount or close
+  const stopLiveCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsLiveCamera(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopLiveCamera();
+    };
+  }, []);
+
+  const handleModalClose = () => {
+    stopLiveCamera();
+    setStep('WEIGHING');
+    onClose();
+  };
+
+  const startLiveCamera = async (facing: 'environment' | 'user' = 'environment') => {
+    setPhotoError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      nativeCameraInputRef.current?.click();
+      return;
+    }
+
+    try {
+      stopLiveCamera();
+      setIsLiveCamera(true);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+    } catch (err: any) {
+      console.warn('Live camera stream not available, falling back to system camera:', err);
+      stopLiveCamera();
+      nativeCameraInputRef.current?.click();
+    }
+  };
+
+  const captureLivePhoto = () => {
+    if (!videoRef.current) return;
+    try {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        setScrapPhoto(dataUrl);
+      }
+      stopLiveCamera();
+    } catch (err) {
+      console.error('Failed to capture frame from camera:', err);
+      setPhotoError('Failed to capture photo frame. Please use Media Upload instead.');
+      stopLiveCamera();
+    }
+  };
+
+  const flipCamera = () => {
+    const nextFacing = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextFacing);
+    startLiveCamera(nextFacing);
+  };
 
   const handleWeightChange = (index: number, newWeightStr: string) => {
     const val = parseFloat(newWeightStr);
@@ -136,15 +224,28 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
       setScrapPhoto(compressedDataUrl);
     } catch (err: any) {
       console.error('Error processing scrap photo:', err);
-      setPhotoError('Failed to process image. Please try again.');
+      // Fallback: try raw FileReader
+      try {
+        const rawReader = new FileReader();
+        rawReader.onload = (re) => {
+          if (re.target?.result) {
+            setScrapPhoto(re.target.result as string);
+          }
+        };
+        rawReader.readAsDataURL(file);
+      } catch {
+        setPhotoError('Failed to process image. Please try again.');
+      }
     } finally {
       setIsProcessingPhoto(false);
-      // Reset input value so re-selecting same file fires onChange
-      e.target.value = '';
+      try {
+        e.target.value = '';
+      } catch {}
     }
   };
 
   const handleRemovePhoto = () => {
+    stopLiveCamera();
     setScrapPhoto(null);
     setPhotoError(null);
   };
@@ -154,33 +255,26 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
       setPhotoError('Please take or upload a photo of the collected scrap before completing.');
       return;
     }
+    stopLiveCamera();
     onComplete(weights, totalPayout, scrapPhoto);
   };
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={() => {
-        setStep('WEIGHING');
-        onClose();
-      }}
+      onClose={handleModalClose}
       title={step === 'WEIGHING' ? 'Digital Weighing & Settlement' : 'Scrap Photo Verification'}
     >
-      {/* Hidden File Inputs for Camera & Gallery */}
+      {/* Hidden native input for direct camera fallback */}
       <input
-        ref={cameraInputRef}
+        ref={nativeCameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
         onChange={handleFileChange}
-        className="hidden"
-      />
-      <input
-        ref={galleryInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
       />
 
       {step === 'WEIGHING' ? (
@@ -201,72 +295,67 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
             </div>
           </div>
 
-          {/* Material Inputs */}
           <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
             {weights.map((item, idx) => (
               <div
                 key={idx}
-                className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2"
+                className="p-3 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2 hover:border-emerald-400 transition"
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-slate-900">{item.name}</div>
-                    <div className="text-[10px] text-emerald-700 font-semibold">
-                      Rate: ₹{item.pricePerKg}/{item.unit}
+                    <div className="text-[11px] text-emerald-700 font-semibold">
+                      ₹{item.pricePerKg} per {item.unit}
                     </div>
                   </div>
-                  <div className="text-right font-extrabold text-slate-900 text-xs">
-                    ₹{item.finalAmount}
+                  <div className="text-right">
+                    <span className="text-xs font-extrabold text-slate-900">
+                      ₹{item.finalAmount}
+                    </span>
                   </div>
                 </div>
 
-                {/* Stepper + Input */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-slate-500 font-medium">Weighed:</span>
-                  <div className="flex items-center space-x-1.5 bg-white border border-slate-200 rounded-xl p-1 shadow-xs">
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden shadow-2xs">
                     <button
                       type="button"
                       onClick={() => handleStep(idx, -1)}
-                      className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition"
+                      className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition"
                     >
-                      <Minus className="w-3 h-3" />
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
                     <input
                       type="number"
-                      step="0.5"
+                      step="any"
                       min="0"
-                      value={item.actualWeightKg}
+                      value={item.actualWeightKg || ''}
                       onChange={(e) => handleWeightChange(idx, e.target.value)}
-                      className="w-16 bg-transparent text-center text-xs font-black text-slate-900 outline-none"
+                      className="w-16 text-center text-xs font-bold bg-transparent focus:outline-none"
                     />
-                    <span className="text-[10px] text-slate-400 pr-1">{item.unit}</span>
                     <button
                       type="button"
                       onClick={() => handleStep(idx, 1)}
-                      className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition"
+                      className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition"
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  <span className="text-xs text-slate-500 font-semibold">{item.unit}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Next Button */}
           <button
             type="submit"
-            disabled={isLoading || totalPayout <= 0}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-3.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 transition shadow-md"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center space-x-2 transition shadow-md shadow-emerald-200"
           >
-            <span>Next: Take Scrap Photo (₹{totalPayout})</span>
+            <span>Proceed to Photo Verification</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
       ) : (
-        /* STEP 2: SCRAP PHOTO CAPTURE */
         <div className="space-y-4">
-          {/* Summary Banner */}
           <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between text-xs">
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -295,7 +384,49 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
               </span>
             </label>
 
-            {scrapPhoto ? (
+            {/* LIVE CAMERA VIEWFINDER */}
+            {isLiveCamera ? (
+              <div className="relative rounded-2xl overflow-hidden bg-black border-2 border-emerald-500 shadow-lg">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-56 object-cover"
+                />
+
+                <div className="absolute top-2 right-2 flex items-center space-x-1.5 z-10">
+                  <button
+                    type="button"
+                    onClick={flipCamera}
+                    className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-900 text-white text-xs backdrop-blur-md transition flex items-center space-x-1"
+                    title="Flip Camera"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-semibold pr-1">Flip</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopLiveCamera}
+                    className="p-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-700 text-white text-xs backdrop-blur-md transition"
+                    title="Close Camera"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="absolute bottom-2.5 inset-x-0 flex items-center justify-center z-10">
+                  <button
+                    type="button"
+                    onClick={captureLivePhoto}
+                    className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-xs rounded-full shadow-lg flex items-center space-x-2 transition border-2 border-white/50"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Snap Scrap Photo</span>
+                  </button>
+                </div>
+              </div>
+            ) : scrapPhoto ? (
               <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500 shadow-md bg-slate-950">
                 <img
                   src={scrapPhoto}
@@ -312,9 +443,9 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
                 <div className="absolute top-2 right-2 flex items-center space-x-1">
                   <button
                     type="button"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={() => startLiveCamera(facingMode)}
                     className="bg-slate-900/80 hover:bg-slate-900 text-white p-1.5 rounded-lg text-xs backdrop-blur-md transition flex items-center space-x-1"
-                    title="Retake Photo"
+                    title="Retake with Camera"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span className="text-[10px] font-semibold pr-1">Retake</span>
@@ -335,44 +466,52 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 bg-slate-50/80 text-center transition flex flex-col items-center justify-center space-y-3">
+              <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-5 bg-slate-50/80 text-center transition flex flex-col items-center justify-center space-y-3">
                 {isProcessingPhoto ? (
                   <div className="py-6 flex flex-col items-center justify-center space-y-2">
                     <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-xs text-slate-500 font-semibold">Compressing photo...</p>
+                    <p className="text-xs text-slate-500 font-semibold">Processing photo...</p>
                   </div>
                 ) : (
                   <>
-                    <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
-                      <Camera className="w-7 h-7" />
+                    <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center shadow-xs">
+                      <Camera className="w-6 h-6" />
                     </div>
 
                     <div>
                       <div className="text-xs font-bold text-slate-800">
-                        Take Photo of Scrap Loaded
+                        Capture Photo of Scrap Loaded
                       </div>
                       <div className="text-[11px] text-slate-500 max-w-xs mt-0.5">
-                        Capture the weighed items or loader bags for the customer receipt & order records.
+                        Capture with your device camera or upload an image from your media files.
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2 w-full pt-1">
+                    <div className="grid grid-cols-2 gap-2 w-full pt-1">
+                      {/* Open Camera Button */}
                       <button
                         type="button"
-                        onClick={() => cameraInputRef.current?.click()}
-                        className="flex-1 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs"
+                        onClick={() => startLiveCamera(facingMode)}
+                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer"
                       >
                         <Camera className="w-4 h-4" />
                         <span>Open Camera</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => galleryInputRef.current?.click()}
-                        className="py-2.5 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Upload Photo</span>
-                      </button>
+
+                      {/* Media Upload Label */}
+                      <label className="py-2.5 px-3 bg-white hover:bg-slate-100 active:scale-95 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 shadow-xs cursor-pointer">
+                        <Upload className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Media Upload</span>
+                        <input
+                          ref={galleryInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="sr-only"
+                          tabIndex={-1}
+                          aria-hidden="true"
+                        />
+                      </label>
                     </div>
                   </>
                 )}
@@ -391,7 +530,10 @@ export const DigitalWeighingModal: React.FC<DigitalWeighingModalProps> = ({
           <div className="flex items-center space-x-2 pt-2">
             <button
               type="button"
-              onClick={() => setStep('WEIGHING')}
+              onClick={() => {
+                stopLiveCamera();
+                setStep('WEIGHING');
+              }}
               className="py-3 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />

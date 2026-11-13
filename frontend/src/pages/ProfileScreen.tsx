@@ -486,7 +486,8 @@ export const ProfileScreen: React.FC = () => {
                   type="file"
                   accept="image/*"
                   onChange={handleImageFileChange}
-                  className="hidden"
+                  className="sr-only"
+                  tabIndex={-1}
                 />
               </label>
             </div>
@@ -499,7 +500,8 @@ export const ProfileScreen: React.FC = () => {
                   type="file"
                   accept="image/*"
                   onChange={handleImageFileChange}
-                  className="hidden"
+                  className="sr-only"
+                  tabIndex={-1}
                 />
               </label>
               {profileImage && (

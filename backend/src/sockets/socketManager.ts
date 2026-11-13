@@ -36,13 +36,11 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
 
     if (dealerId) {
       socket.join(`dealer:${dealerId}`);
-      socket.join('dealers:all');
     }
 
     socket.on('join:dealer', ({ dealerId: dId }: { dealerId: string }) => {
       if (dId) {
         socket.join(`dealer:${dId}`);
-        socket.join('dealers:all');
         console.log(`🚛 Socket ${socket.id} joined dealer room: dealer:${dId}`);
       }
     });
@@ -103,8 +101,8 @@ export const dealerSocketEvents = {
    */
   emitIncomingPickupAlert: (dealerId: string, orderData: any) => {
     if (!ioInstance) return;
-    console.log(`🚨 Emitting pickup:new to room dealer:${dealerId}`);
-    ioInstance.to(`dealer:${dealerId}`).to('dealers:all').emit('pickup:new', {
+    console.log(`🚨 Emitting pickup:new strictly to room dealer:${dealerId}`);
+    ioInstance.to(`dealer:${dealerId}`).emit('pickup:new', {
       orderId: orderData.orderId,
       dealerId: orderData.dealerId,
       consumerId: orderData.consumerId,
@@ -194,7 +192,7 @@ export const dealerSocketEvents = {
   emitOrderRated: (dealerId: string, ratingData: any) => {
     if (!ioInstance) return;
     console.log(`⭐ Emitting pickup:rated to dealer:${dealerId}`);
-    ioInstance.to(`dealer:${dealerId}`).to('dealers:all').emit('pickup:rated', ratingData);
+    ioInstance.to(`dealer:${dealerId}`).emit('pickup:rated', ratingData);
     if (ratingData.orderId) {
       ioInstance.to(`order:${ratingData.orderId}`).emit('pickup:rated', ratingData);
     }
