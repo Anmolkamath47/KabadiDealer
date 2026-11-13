@@ -217,7 +217,14 @@ export const createLocationAndIpRateLimiter = (
       );
       res.setHeader('X-RateLimit-Geohash', geohash);
 
+      console.log(
+        `🛡️ [RateLimiter] IP: ${clientIp} (${ipRecord.totalHits}/${maxIpRequests}) | Geohash: ${geohash} (${locationRecord.totalHits}/${maxLocationRequests})`
+      );
+
       if (locationRecord.totalHits > maxLocationRequests) {
+        console.warn(
+          `🚫 [RateLimiter] Location limit exceeded for Geohash ${geohash} (${locationRecord.totalHits}/${maxLocationRequests} req/min)`
+        );
         const retryAfterSec = Math.max(1, Math.ceil((locationRecord.resetTime - Date.now()) / 1000));
         res.setHeader('Retry-After', retryAfterSec.toString());
 
