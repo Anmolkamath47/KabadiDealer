@@ -251,6 +251,9 @@ export class KabadiwalaClient {
       score: number;
       feedback?: string;
       tags?: string[];
+      dealerId?: string;
+      dealerName?: string;
+      dealerBusinessName?: string;
     }
   ): Promise<boolean> {
     try {

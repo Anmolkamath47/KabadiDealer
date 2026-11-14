@@ -426,6 +426,9 @@ export class OrderController {
           score: Number(score),
           feedback,
           tags,
+          dealerId: req.dealer!.dealerId,
+          dealerName: req.dealer?.contactPerson || req.dealer?.businessName,
+          dealerBusinessName: req.dealer?.businessName,
         });
       }
 

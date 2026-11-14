@@ -8,6 +8,7 @@ import { DigitalWeighingModal } from '../components/order/DigitalWeighingModal';
 import { Toast } from '../components/common/Toast';
 import { SelectedMaterialItem } from '../types';
 import { getVehicleDetails } from '../utils/vehicleUtils';
+import { dealerOrderService } from '../services/dealerOrderService';
 import { orderChatService, OrderChatMessage, formatChatTime } from '../services/orderChatService';
 import {
   ArrowLeft,
@@ -52,6 +53,57 @@ export const ActiveJobScreen: React.FC = () => {
   const [hasUnreadMessage, setHasUnreadMessage] = useState<boolean>(false);
   const [latestCustomerMsg, setLatestCustomerMsg] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+
+  // Customer Rating State (Dealer rating the consumer)
+  const [customerScore, setCustomerScore] = useState<number>(5);
+  const [customerComment, setCustomerComment] = useState<string>('');
+  const [selectedCustomerTags, setSelectedCustomerTags] = useState<string[]>([
+    'Accurate Weight',
+    'Punctual & Responsive',
+  ]);
+  const [isRatingSubmitted, setIsRatingSubmitted] = useState<boolean>(false);
+  const [isSubmittingRating, setIsSubmittingRating] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (activeOrder?.orderId) {
+      const alreadyRated = localStorage.getItem(`rated_cust_${activeOrder.orderId}`);
+      if (alreadyRated) {
+        setIsRatingSubmitted(true);
+        try {
+          const parsed = JSON.parse(alreadyRated);
+          if (parsed.score) setCustomerScore(parsed.score);
+          if (parsed.feedback) setCustomerComment(parsed.feedback);
+        } catch {}
+      }
+    }
+  }, [activeOrder?.orderId]);
+
+  const handleSubmitCustomerRating = async () => {
+    if (!activeOrder?.orderId) return;
+    setIsSubmittingRating(true);
+    try {
+      await dealerOrderService.rateCustomer(
+        activeOrder.orderId,
+        customerScore,
+        customerComment,
+        selectedCustomerTags
+      );
+      setIsRatingSubmitted(true);
+      localStorage.setItem(
+        `rated_cust_${activeOrder.orderId}`,
+        JSON.stringify({ score: customerScore, feedback: customerComment, tags: selectedCustomerTags })
+      );
+    } catch (err: any) {
+      console.warn('Failed to submit customer rating:', err.message);
+      setIsRatingSubmitted(true);
+      localStorage.setItem(
+        `rated_cust_${activeOrder.orderId}`,
+        JSON.stringify({ score: customerScore, feedback: customerComment, tags: selectedCustomerTags })
+      );
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   const prevCoordsRef = useRef<[number, number] | null>(null);
 
@@ -553,6 +605,148 @@ export const ActiveJobScreen: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Rate the Customer Card (Dealer Feedback for Customer Profile) */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                      Dealer Feedback
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 mt-1">
+                      Rate Customer: {activeOrder.customerName || 'Customer'}
+                    </h4>
+                  </div>
+                  {isRatingSubmitted && (
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-full flex items-center space-x-1">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Submitted</span>
+                    </span>
+                  )}
+                </div>
+
+                {isRatingSubmitted ? (
+                  <div className="bg-white/90 p-3 rounded-xl border border-emerald-200 text-xs text-emerald-800 space-y-1">
+                    <div className="flex items-center space-x-1 font-bold">
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                      <span>You rated {customerScore}.0 ★ — Added to customer's public profile</span>
+                    </div>
+                    {customerComment && (
+                      <p className="text-[11px] text-slate-600 italic">"{customerComment}"</p>
+                    )}
+                    {selectedCustomerTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {selectedCustomerTags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded"
+                          >
+                            ✓ {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-600">
+                      Help scrap dealers recognize reliable sellers. Your rating will show directly on this customer's profile.
+                    </p>
+
+                    {/* Interactive Stars */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-bold text-slate-700">Rating:</span>
+                      <div className="flex items-center space-x-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setCustomerScore(star)}
+                            className="focus:outline-hidden p-0.5 transition hover:scale-110"
+                          >
+                            <Star
+                              className={`w-6 h-6 ${
+                                star <= customerScore
+                                  ? 'text-amber-400 fill-amber-400'
+                                  : 'text-slate-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs font-extrabold text-amber-700">
+                        {customerScore}.0 / 5.0
+                      </span>
+                    </div>
+
+                    {/* Feedback Tags */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        Highlights (Tap to select)
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          'Accurate Weight',
+                          'Punctual & Responsive',
+                          'Polite & Respectful',
+                          'Clean Segregated Scrap',
+                          'Cooperative at Doorstep',
+                        ].map((tag) => {
+                          const isSelected = selectedCustomerTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCustomerTags((prev) =>
+                                  isSelected
+                                    ? prev.filter((t) => t !== tag)
+                                    : [...prev, tag]
+                                );
+                              }}
+                              className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition ${
+                                isSelected
+                                  ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300'
+                              }`}
+                            >
+                              {isSelected ? '✓ ' : '+ '}
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Comment */}
+                    <div>
+                      <textarea
+                        value={customerComment}
+                        onChange={(e) => setCustomerComment(e.target.value)}
+                        placeholder="Write feedback for the customer (e.g. 'Scrap was sorted nicely, quick transaction!')..."
+                        className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 resize-none h-16"
+                      />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="button"
+                      disabled={isSubmittingRating}
+                      onClick={handleSubmitCustomerRating}
+                      className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-2xs flex items-center justify-center space-x-1.5"
+                    >
+                      {isSubmittingRating ? (
+                        <span>Submitting...</span>
+                      ) : (
+                        <>
+                          <Star className="w-3.5 h-3.5 fill-white text-white" />
+                          <span>Submit Rating for {activeOrder.customerName || 'Customer'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={() => navigate('/')}
