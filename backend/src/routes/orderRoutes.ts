@@ -30,5 +30,6 @@ router.patch('/:orderId/status', validateRequest(UpdateOrderStatusSchema), Order
 router.post('/:orderId/status', validateRequest(UpdateOrderStatusSchema), OrderController.updateStatus);
 router.get('/:orderId/chat', OrderController.getOrderChat);
 router.post('/:orderId/chat', OrderController.postDealerChat);
+router.post('/:orderId/rate-customer', OrderController.rateCustomer);
 
 export default router;

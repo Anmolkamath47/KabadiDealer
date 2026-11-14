@@ -40,6 +40,13 @@ export class OrderEngineService {
     notes?: string;
     otpCode?: string;
     scrapPhoto?: string;
+    customerReliability?: {
+      starRating?: number;
+      trustScore?: number;
+      trustTier?: string;
+      completedOrders?: number;
+      cancellationRate?: number;
+    };
   }): Promise<IDealerOrder> {
     let dealer = await Dealer.findOne({ dealerId: data.dealerId });
     if (!dealer) {
@@ -97,6 +104,13 @@ export class OrderEngineService {
         expiresAt,
         scrapPhoto: data.scrapPhoto,
         notes: data.notes,
+        customerReliability: data.customerReliability || {
+          starRating: 5.0,
+          trustScore: 100,
+          trustTier: 'EXCELLENT',
+          completedOrders: 0,
+          cancellationRate: 0,
+        },
       },
       { upsert: true, new: true }
     );

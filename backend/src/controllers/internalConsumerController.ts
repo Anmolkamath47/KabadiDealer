@@ -18,6 +18,15 @@ export const IncomingPickupSchema = z.object({
   otpCode: z.string().optional(),
   scrapPhoto: z.string().optional(),
   notes: z.string().optional(),
+  customerReliability: z
+    .object({
+      starRating: z.number().optional(),
+      trustScore: z.number().optional(),
+      trustTier: z.string().optional(),
+      completedOrders: z.number().optional(),
+      cancellationRate: z.number().optional(),
+    })
+    .optional(),
 });
 
 export const DealerRatingSubmissionSchema = z.object({

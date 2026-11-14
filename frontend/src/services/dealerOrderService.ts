@@ -184,4 +184,18 @@ export const dealerOrderService = {
     });
     return res.data.data;
   },
+
+  async rateCustomer(
+    orderId: string,
+    score: number,
+    feedback?: string,
+    tags?: string[]
+  ): Promise<any> {
+    const res = await api.post(`/orders/${orderId}/rate-customer`, {
+      score,
+      feedback,
+      tags,
+    });
+    return res.data;
+  },
 };

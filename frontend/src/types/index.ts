@@ -121,6 +121,13 @@ export interface DealerOrder {
   };
   expiresAt: string;
   rejectionReason?: string;
+  customerReliability?: {
+    starRating?: number;
+    trustScore?: number;
+    trustTier?: string;
+    completedOrders?: number;
+    cancellationRate?: number;
+  };
   notes?: string;
   createdAt: string;
   updatedAt: string;

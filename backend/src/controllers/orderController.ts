@@ -405,4 +405,36 @@ export class OrderController {
       res.status(400).json({ success: false, message: err.message });
     }
   }
+
+  static async rateCustomer(
+    req: AuthenticatedDealerRequest,
+    res: Response,
+    _next: NextFunction
+  ): Promise<void> {
+    try {
+      const orderId = req.params.orderId as string;
+      const { score, feedback, tags } = req.body;
+      const order = await DealerOrder.findOne({ orderId, dealerId: req.dealer!.dealerId });
+      if (!order) {
+        res.status(404).json({ success: false, message: 'Order not found' });
+        return;
+      }
+
+      if (order.consumerId) {
+        await KabadiwalaClient.rateConsumer(order.consumerId, {
+          orderId,
+          score: Number(score),
+          feedback,
+          tags,
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Customer rating and feedback submitted successfully.',
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, message: err.message });
+    }
+  }
 }

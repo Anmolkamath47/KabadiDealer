@@ -240,5 +240,36 @@ export class KabadiwalaClient {
       return false;
     }
   }
+
+  /**
+   * Dealer rates consumer on Kabadiwala backend
+   */
+  static async rateConsumer(
+    consumerId: string,
+    data: {
+      orderId: string;
+      score: number;
+      feedback?: string;
+      tags?: string[];
+    }
+  ): Promise<boolean> {
+    try {
+      await axios.post(
+        `${config.kabadiwalaApiUrl}/internal/dealer/rate-consumer`,
+        {
+          consumerId,
+          ...data,
+        },
+        {
+          headers: this.getHeaders(),
+          timeout: 5000,
+        }
+      );
+      return true;
+    } catch (err: any) {
+      console.warn(`⚠️ [Kabadiwala Cross-App Sync] Rate consumer sync warning (${err.message}).`);
+      return false;
+    }
+  }
 }
 

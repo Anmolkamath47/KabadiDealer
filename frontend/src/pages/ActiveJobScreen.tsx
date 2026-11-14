@@ -286,6 +286,40 @@ export const ActiveJobScreen: React.FC = () => {
               onSendLivePing={(coords: [number, number]) => sendLiveLocation(coords, 45, 25)}
             />
 
+            {/* Customer Trust & Reliability Card */}
+            <div className="bg-white p-3.5 rounded-3xl border border-slate-200 shadow-card flex items-center justify-between text-xs">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-bold text-xs">
+                  ⭐
+                </div>
+                <div>
+                  <div className="font-extrabold text-slate-900 flex items-center space-x-1.5">
+                    <span>{activeOrder.customerName || 'Customer'}</span>
+                    <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded font-black">
+                      ★ {(activeOrder.customerReliability?.starRating ?? 5.0).toFixed(1)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium">
+                    {activeOrder.customerReliability?.completedOrders ?? 0} Completed Pickups ·{' '}
+                    {100 - (activeOrder.customerReliability?.cancellationRate ?? 0)}% Success Rate
+                  </div>
+                </div>
+              </div>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                  (activeOrder.customerReliability?.trustTier || 'EXCELLENT') === 'EXCELLENT'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : (activeOrder.customerReliability?.trustTier || 'EXCELLENT') === 'GOOD'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                }`}
+              >
+                {(activeOrder.customerReliability?.trustTier || 'EXCELLENT') === 'EXCELLENT'
+                  ? '🛡️ Verified Seller'
+                  : 'Reliable'}
+              </span>
+            </div>
+
             {/* Action buttons depending on state */}
             {activeOrder.status === 'ACCEPTED' ? (
               <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-card space-y-3">

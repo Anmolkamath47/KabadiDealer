@@ -38,6 +38,13 @@ export interface IDealerOrder extends Document {
   };
   expiresAt: Date;
   rejectionReason?: string;
+  customerReliability?: {
+    starRating?: number;
+    trustScore?: number;
+    trustTier?: string;
+    completedOrders?: number;
+    cancellationRate?: number;
+  };
   chatMessages: Array<{
     id: string;
     sender: 'consumer' | 'dealer';
@@ -204,6 +211,13 @@ const DealerOrderSchema = new Schema<IDealerOrder>(
     },
     rejectionReason: {
       type: String,
+    },
+    customerReliability: {
+      starRating: { type: Number, default: 5.0 },
+      trustScore: { type: Number, default: 100 },
+      trustTier: { type: String, default: 'EXCELLENT' },
+      completedOrders: { type: Number, default: 0 },
+      cancellationRate: { type: Number, default: 0 },
     },
     chatMessages: [
       {
