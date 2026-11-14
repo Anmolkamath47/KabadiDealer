@@ -100,24 +100,12 @@ export const IncomingRequestModal: React.FC = () => {
                 <h3 className="text-base font-black text-slate-900">
                   {incomingRequest.customerName || 'Customer'}
                 </h3>
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
                   <span>
                     {((incomingRequest as any).customerRating ?? incomingRequest.customerReliability?.starRating ?? 5.0).toFixed(1)} ★
                   </span>
                 </span>
-                {incomingRequest.customerReliability?.trustTier && (
-                  <span className={`inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                    incomingRequest.customerReliability.trustTier === 'EXCELLENT'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : incomingRequest.customerReliability.trustTier === 'GOOD'
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}>
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>{incomingRequest.customerReliability.trustTier}</span>
-                  </span>
-                )}
               </div>
               <p className="text-xs text-slate-600 flex items-center space-x-1 mt-1">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
